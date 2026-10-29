@@ -44,7 +44,7 @@
   {% if related %}
   <section>
     <h2>함께 보면 좋은 지원</h2>
-    <ul>{% for r in related %}<li><a href="/p/{{ r['서비스ID'] }}.html">{{ r["서비스명"] }}</a> <span class="muted">{{ r["소관기관명"] }}</span></li>{% endfor %}</ul>
+    <ul>{% for r in related %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}</a> <span class="muted">{{ r["소관기관명"] }}</span></li>{% endfor %}</ul>
   </section>
   {% endif %}
 

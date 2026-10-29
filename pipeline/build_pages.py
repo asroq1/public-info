@@ -72,7 +72,7 @@ def jsonld(s: dict, url: str | None) -> str:
 
 def related_for(s: dict, by_org: dict, by_field: dict, pos: dict) -> list[dict]:
     """같은 기관 3건 + 같은 분야 2건. 위치를 기준으로 골라 페이지마다 다양하게 연결한다."""
-    out, seen = [], {s["서비스ID"]}
+    out, seen = [], {s['서비스ID']}
 
     def take(group: list[dict], key: str, n: int) -> None:
         if len(group) < 2:
@@ -94,7 +94,7 @@ def related_for(s: dict, by_org: dict, by_field: dict, pos: dict) -> list[dict]:
 
 
 def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) -> str:
-    url = f"{SITE_URL}/p/{s['서비스ID']}.html" if SITE_URL else None
+    url = f"{SITE_URL}/p/{s['서비스ID']}" if SITE_URL else None
     org = s.get("소관기관명") or ""
     return env.get_template("policy.html.j2").render(
         s=s,
@@ -119,7 +119,7 @@ def render_field(field: str, items: list[dict], total: int, num: int, updated: s
         updated=updated,
         title=f"{field} 정부·지자체 지원 서비스 {total}건 | 내 혜택 찾기",
         description=f"{field} 분야 정부·지자체 지원 서비스 모음. 인기 순으로 대상과 신청방법을 확인하세요.",
-        canonical=f"{SITE_URL}/f/{num}.html" if SITE_URL else None,
+        canonical=f"{SITE_URL}/f/{num}" if SITE_URL else None,
     )
 
 
@@ -158,7 +158,7 @@ def main() -> None:
                 pos[s["서비스ID"]][key] = i
 
     fields = sorted(by_field)
-    field_urls = {f: f"/f/{i + 1}.html" for i, f in enumerate(fields)}
+    field_urls = {f: f"/f/{i + 1}" for i, f in enumerate(fields)}
 
     for sub in ("p", "f"):
         shutil.rmtree(PUBLIC / sub, ignore_errors=True)
@@ -168,13 +168,13 @@ def main() -> None:
     for s in services:
         html = render_policy(s, related_for(s, by_org, by_field, pos), field_urls, updated)
         (PUBLIC / "p" / f"{s['서비스ID']}.html").write_text(html, encoding="utf-8")
-        entries.append((f"{SITE_URL}/p/{s['서비스ID']}.html", to_date(s.get("수정일시"))))
+        entries.append((f"{SITE_URL}/p/{s['서비스ID']}", to_date(s.get("수정일시"))))
 
     for i, f in enumerate(fields, start=1):
         items = by_field[f][:FIELD_PAGE_LIMIT]
         html = render_field(f, items, len(by_field[f]), i, updated)
         (PUBLIC / "f" / f"{i}.html").write_text(html, encoding="utf-8")
-        entries.append((f"{SITE_URL}/f/{i}.html", updated))
+        entries.append((f"{SITE_URL}/f/{i}", updated))
 
     if SITE_URL:
         entries.insert(0, (f"{SITE_URL}/", updated))

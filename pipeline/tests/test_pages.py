@@ -17,7 +17,7 @@ SERVICE = {
 
 
 def render(**kw):
-    return bp.render_policy(SERVICE, kw.get("related", []), {"생활안정": "/f/1.html"}, "2026-10-29")
+    return bp.render_policy(SERVICE, kw.get("related", []), {"생활안정": "/f/1"}, "2026-10-29")
 
 
 def test_text_is_escaped():
@@ -54,14 +54,14 @@ def test_missing_sections_are_omitted():
 
 def test_canonical_only_with_site_url(monkeypatch):
     monkeypatch.setattr(bp, "SITE_URL", "https://site.kr")
-    assert 'rel="canonical" href="https://site.kr/p/T1.html"' in render()
+    assert 'rel="canonical" href="https://site.kr/p/T1"' in render()
     monkeypatch.setattr(bp, "SITE_URL", "")
     assert "canonical" not in render()
 
 
 def test_sitemap_format():
-    xml = bp.sitemap([("https://s.kr/p/1.html", "2026-01-02"), ("https://s.kr/", None)])
-    assert "<loc>https://s.kr/p/1.html</loc><lastmod>2026-01-02</lastmod>" in xml
+    xml = bp.sitemap([("https://s.kr/p/1", "2026-01-02"), ("https://s.kr/", None)])
+    assert "<loc>https://s.kr/p/1</loc><lastmod>2026-01-02</lastmod>" in xml
     assert "<loc>https://s.kr/</loc></url>" in xml
 
 

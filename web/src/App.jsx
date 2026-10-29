@@ -170,7 +170,7 @@ export default function App() {
               {s.o && <span>{s.o}</span>}
               {s.uncertain && <span className="warn">조건 정보 없음 · 직접 확인</span>}
             </div>
-            <h2><a className="plain" href={`/p/${s.id}.html`}>{s.n}</a></h2>
+            <h2><a className="plain" href={`/p/${s.id}`}>{s.n}</a></h2>
             {s.t && <p><b>대상</b> {s.t}</p>}
             {s.d && <p><b>기한</b> {s.d}</p>}
             <a href={s.u} target="_blank" rel="noreferrer">공식 페이지에서 확인 →</a>
