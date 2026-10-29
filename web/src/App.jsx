@@ -42,6 +42,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [profile, setProfile] = useState(loadSavedProfile);
   const [shown, setShown] = useState(PAGE_SIZE);
+  const [recent, setRecent] = useState([]);
 
   useEffect(() => {
     fetch("/data/index.json")
@@ -54,6 +55,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // 없거나 JSON 이 아니면(파일 없음) 패널만 생략한다
+    fetch("/data/changes.json")
+      .then((r) => r.json())
+      .then((c) => setRecent(Array.isArray(c.recent) ? c.recent : []))
+      .catch(() => setRecent([]));
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, q: "" }));
     } catch {
@@ -61,6 +70,15 @@ export default function App() {
     }
     setShown(PAGE_SIZE);
   }, [profile]);
+
+  const recentItems = useMemo(() => {
+    if (!data) return [];
+    const byId = new Map(data.services.map((s) => [s.id, s]));
+    return recent
+      .map((r) => ({ ...byId.get(r.id), reg: r.reg }))
+      .filter((s) => s.id)
+      .slice(0, 5);
+  }, [data, recent]);
 
   const results = useMemo(
     () => (data ? findServices(data.services, profile) : []),
@@ -88,6 +106,20 @@ export default function App() {
       </p>
 
       {error && <p className="notice">{error}</p>}
+
+      {recentItems.length > 0 && (
+        <section className="recent">
+          <h3>최근 30일 새로 등록된 지원</h3>
+          <ul>
+            {recentItems.map((s) => (
+              <li key={s.id}>
+                <a href={`/p/${s.id}`}>{s.n}</a>
+                <span className="muted"> {s.o} · {s.reg.slice(0, 4)}.{s.reg.slice(4, 6)}.{s.reg.slice(6, 8)} 등록</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="panel">
         <label>
