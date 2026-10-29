@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Subscribe from "./Subscribe.jsx";
 import {
   HOUSEHOLD_TRAITS,
   INCOME_LABELS,
@@ -188,6 +189,8 @@ export default function App() {
           사업자·기관 지원도 보기
         </label>
       </section>
+
+      <Subscribe profile={profile} />
 
       <p className="count">
         {data ? `${results.length.toLocaleString()}건` : error ? "" : "불러오는 중…"}

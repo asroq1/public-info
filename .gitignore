@@ -12,3 +12,4 @@ web/public/sitemap.xml
 web/public/robots.txt
 web/public/data/hashes.json
 web/public/data/changes.json
+.wrangler/

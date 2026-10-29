@@ -55,3 +55,12 @@ def test_recent_registered_window():
         "2026-10-30",
     )
     assert [r["id"] for r in rows] == ["a", "b"]
+
+
+def test_today_items_keeps_only_matching_fields():
+    import build_index as bi
+
+    index = [{"id": "1", "n": "a", "o": "o", "ot": "t", "f": "f", "u": "u", "d": "d", "c": {}, "s": "긴 요약", "t": "대상", "v": 5}]
+    out = bi.today_items(index, {"date": "2026-10-30", "new": ["1", "missing"], "updated": [], "removed": []})
+    assert out["new"] == [{"id": "1", "n": "a", "o": "o", "ot": "t", "f": "f", "u": "u", "d": "d", "c": {}}]
+    assert out["updated"] == []

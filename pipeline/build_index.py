@@ -99,18 +99,33 @@ def load_previous(name: str, local: Path):
     return json.loads(local.read_text(encoding="utf-8")) if local.exists() else None
 
 
-def detect_changes(full: list[dict], prev_hashes: dict | None, today: str) -> tuple[dict, dict]:
+def detect_changes(
+    full: list[dict], index: list[dict], prev_hashes: dict | None, today: str
+) -> tuple[dict, dict]:
     hashes = {s["서비스ID"]: content_hash(s) for s in full if s.get("서비스ID")}
     result = diff(prev_hashes, hashes)
     history = (load_previous("changes.json", CHANGES_PATH) or {}).get("history", [])
+    merged = merge_history(history, today, result)
     changes = {
         "generated": today,
         "first_run": result["first_run"],
         "bulk_change": result["bulk"],
-        "history": merge_history(history, today, result),
+        "history": merged,
         "recent": recent_registered(full, today),
+        "today": today_items(index, merged[0]),
     }
     return hashes, changes
+
+
+def today_items(index: list[dict], entry: dict) -> dict:
+    """알림 발송용으로 오늘의 신규·변경 서비스의 매칭에 필요한 필드만 담는다."""
+    by_id = {r["id"]: r for r in index}
+    keep = ("id", "n", "o", "ot", "f", "u", "d", "c")
+
+    def pick(ids: list[str]) -> list[dict]:
+        return [{k: by_id[i][k] for k in keep} for i in ids if i in by_id]
+
+    return {"date": entry["date"], "new": pick(entry["new"]), "updated": pick(entry["updated"])}
 
 
 def main() -> None:
@@ -118,7 +133,7 @@ def main() -> None:
     prev_hashes = load_previous("hashes.json", HASHES_PATH)
     validate(index, len(prev_hashes) if prev_hashes else None)
     today = datetime.now(KST).strftime("%Y-%m-%d")
-    hashes, changes = detect_changes(full, prev_hashes, today)
+    hashes, changes = detect_changes(full, index, prev_hashes, today)
     meta = {"updated": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "count": len(index)}
 
     INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)

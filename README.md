@@ -35,3 +35,18 @@ SITE_URL=https://내도메인 .venv/bin/python build_pages.py   # web/public/p, 
 `.github/workflows/deploy.yml` 이 매일 06:00 KST 에 수집·검증·빌드·배포한다. 저장소에 아래를 등록해야 동작한다.
 - Secrets: `GOV24_SERVICE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 - Variables: `SITE_URL`, `CF_PROJECT_NAME`
+
+## 이메일 알림 켜기
+코드는 배포돼 있지만 아래 설정을 마치기 전에는 `/api/status` 가 `enabled:false` 를 돌려주고 구독 폼이 숨겨진다.
+
+1. **D1 만들기**: `npx wrangler d1 create benefit-alerts` (스키마는 첫 요청 때 자동 생성)
+2. **Cloudflare Pages 프로젝트 → Settings → Bindings** 에 D1 바인딩 추가: 변수명 `DB`
+3. **Pages → Settings → Variables and Secrets** (Production):
+   - `RESEND_API_KEY` (Secret), `FROM_EMAIL` (예: `내 혜택 찾기 <noreply@도메인>`)
+   - `DIGEST_TOKEN` (Secret, 임의의 긴 문자열)
+   - 선택: `SITE_URL`, `TURNSTILE_SECRET`(Secret)·`TURNSTILE_SITE_KEY`, `MAX_SIGNUPS_PER_DAY`(기본 50)
+4. **GitHub Secrets** 에 같은 값의 `DIGEST_TOKEN` 등록 → 매일 배포 직후 발송 단계가 실행된다.
+5. Resend 에서 발송 도메인(SPF/DKIM)을 인증한다. 인증 전에는 본인 계정 주소로만 보낼 수 있다.
+
+로컬 시험: `npx wrangler pages dev web/dist --d1=DB --binding FROM_EMAIL=x@x.kr --binding ALLOW_DRY_RUN=1 --binding DIGEST_TOKEN=t`
+(`ALLOW_DRY_RUN` 은 메일을 보내지 않고 로그로만 남긴다. 운영에는 설정하지 않는다.)

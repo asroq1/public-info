@@ -49,3 +49,10 @@ footer { margin-top: 32px; font-size: 12px; color: var(--muted); }
 .recent h3 { margin: 0 0 6px; font-size: 14px; }
 .recent ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.7; }
 .recent a { color: var(--accent); }
+.subscribe { margin: 16px 0; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.subscribe h3 { margin: 0 0 6px; font-size: 15px; }
+.subscribe form { display: grid; gap: 10px; margin-top: 10px; }
+.subscribe .consent { align-items: flex-start; font-size: 13px; color: var(--muted); }
+.subscribe .consent a { color: var(--accent); }
+.subscribe button:disabled { opacity: .5; cursor: not-allowed; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
