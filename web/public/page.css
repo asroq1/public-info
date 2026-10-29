@@ -16,3 +16,6 @@ ul { padding-left:20px; }
 .muted { color:var(--muted); font-size:13px; }
 .cta { display:inline-block; margin-top:20px; padding:12px 18px; background:var(--accent); color:#fff; border-radius:10px; text-decoration:none; font-weight:600; }
 footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+.who dl { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:8px 0; }
+.who dt { font-weight:600; }
+.who dd { margin:0; }

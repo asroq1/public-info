@@ -57,3 +57,62 @@ def parse_conditions(row: dict) -> dict:
     if not any(k in out for k in ("a", "g", "i", "p", "h", "b")):
         out["nc"] = 1
     return out
+
+
+# --- 페이지 표기용 -------------------------------------------------------
+
+PERSON_LABELS = {
+    "0301": "예비부모·난임", "0302": "임산부", "0303": "출산·입양",
+    "0313": "농업인", "0314": "어업인", "0315": "축산업인", "0316": "임업인",
+    "0317": "초등학생", "0318": "중학생", "0319": "고등학생", "0320": "대학생·대학원생",
+    "0326": "근로자·직장인", "0327": "구직자·실업자", "0328": "장애인",
+    "0329": "국가보훈대상자", "0330": "질병·질환자",
+}
+HOUSEHOLD_LABELS = {
+    "0401": "다문화가족", "0402": "북한이탈주민", "0403": "한부모·조손가정",
+    "0404": "1인가구", "0411": "다자녀가구", "0412": "무주택세대",
+    "0413": "신규전입", "0414": "확대가족",
+}
+INCOME_LABELS = {
+    1: "중위소득 50% 이하", 2: "중위소득 51~75%", 3: "중위소득 76~100%",
+    4: "중위소득 101~200%", 5: "중위소득 200% 초과",
+}
+SEX_LABELS = {"M": "남성", "F": "여성"}
+
+
+def describe_conditions(cond: dict) -> list[tuple[str, str]]:
+    """압축 조건 -> [(항목, 설명)]. 제한이 있는 항목만 돌려준다."""
+    rows: list[tuple[str, str]] = []
+
+    if "a" in cond:
+        lo, hi = cond["a"]
+        if lo is not None and hi is not None:
+            text = f"만 {lo}세 이상 {hi}세 이하"
+        elif lo is not None:
+            text = f"만 {lo}세 이상"
+        else:
+            text = f"만 {hi}세 이하"
+        rows.append(("나이", text))
+
+    sexes = cond.get("g", [])
+    if len(sexes) == 1:
+        rows.append(("성별", f"{SEX_LABELS[sexes[0]]}"))
+
+    incomes = cond.get("i", [])
+    if incomes and len(incomes) < len(INCOME_LABELS):
+        rows.append(("소득", ", ".join(INCOME_LABELS[i] for i in incomes)))
+
+    for key, none_code, labels, title in (
+        ("p", "0322", PERSON_LABELS, "해당 상황"),
+        ("h", "0410", HOUSEHOLD_LABELS, "가구 상황"),
+    ):
+        codes = cond.get(key, [])
+        if codes and none_code not in codes:
+            names = [labels[c] for c in codes if c in labels]
+            if names:
+                rows.append((title, ", ".join(names)))
+
+    individual = bool(cond.get("p") or cond.get("h"))
+    if cond.get("b") and not individual:
+        rows.append(("대상", "사업자·기관"))
+    return rows

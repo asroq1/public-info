@@ -69,3 +69,27 @@ def test_to_date():
     assert bp.to_date("20260430093900") == "2026-04-30"
     assert bp.to_date("") is None
     assert bp.to_date("garbage") is None
+
+
+def test_who_section_lists_only_restrictive_conditions():
+    from app.conditions import describe_conditions
+
+    rows = dict(describe_conditions({
+        "a": [18, 39], "g": ["M", "F"], "i": [1, 2],
+        "p": ["0302", "0328"], "h": ["0403", "0410"],
+    }))
+    assert rows["나이"] == "만 18세 이상 39세 이하"
+    assert "성별" not in rows            # 남녀 모두면 표기하지 않음
+    assert rows["소득"] == "중위소득 50% 이하, 중위소득 51~75%"
+    assert rows["해당 상황"] == "임산부, 장애인"
+    assert "가구 상황" not in rows        # 해당사항없음 코드가 있으면 제한 없음
+
+
+def test_who_section_rendering_and_empty_states():
+    s = {**SERVICE, "conditions": {"a": [65, None], "g": ["F"]}}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    assert "만 65세 이상" in html and "<dd>여성</dd>" in html
+    s = {**SERVICE, "conditions": {"nc": 1}}
+    assert "지원조건 코드가 없는 서비스" in bp.render_policy(s, [], {}, "2026-10-29")
+    s = {**SERVICE, "conditions": {"g": ["M", "F"]}}
+    assert "별도 제한 코드가 없습니다" in bp.render_policy(s, [], {}, "2026-10-29")

@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+from app.conditions import describe_conditions
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 ROOT = Path(__file__).resolve().parent
@@ -106,6 +107,8 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         jsonld=jsonld(s, url),
         sections=SECTIONS,
         related=related,
+        who=describe_conditions(s.get("conditions") or {}),
+        no_conditions=bool((s.get("conditions") or {}).get("nc")),
         field_url=field_urls.get(s.get("서비스분야"), "/"),
         updated=updated,
     )
