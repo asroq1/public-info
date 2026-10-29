@@ -1,0 +1,12 @@
+.venv/
+node_modules/
+dist/
+.env
+*.db
+__pycache__/
+pipeline/build/
+web/public/data/index.json
+web/public/p/
+web/public/f/
+web/public/sitemap.xml
+web/public/robots.txt
