@@ -9,17 +9,25 @@ const svc = (over = {}) => ({
 const profile = (over = {}) => ({ ...emptyProfile(), ...over });
 
 describe("연령", () => {
-  it("범위 밖이면 제외", () => {
+  it("범위 밖이어도 제외하지 않고 확인 표시만 한다", () => {
     const s = svc({ c: { a: [18, 39] } });
-    expect(matchService(s, profile({ age: 30 }))).toBe(true);
-    expect(matchService(s, profile({ age: 40 }))).toBe(false);
-    expect(matchService(s, profile({ age: 17 }))).toBe(false);
+    expect(matchService(s, profile({ age: 40 }))).toBe(true);
+    expect(findServices([s], profile({ age: 40 }))[0].ageCheck).toBe(true);
+    expect(findServices([s], profile({ age: 30 }))[0].ageCheck).toBe(false);
+    expect(findServices([s], profile({ age: 17 }))[0].ageCheck).toBe(true);
   });
   it("상한 없음", () => {
-    expect(matchService(svc({ c: { a: [65, null] } }), profile({ age: 80 }))).toBe(true);
+    const [r] = findServices([svc({ c: { a: [65, null] } })], profile({ age: 80 }));
+    expect(r.ageCheck).toBe(false);
   });
-  it("나이 미입력이면 연령으로 거르지 않음", () => {
-    expect(matchService(svc({ c: { a: [65, null] } }), profile())).toBe(true);
+  it("나이 미입력이면 표시하지 않음", () => {
+    const [r] = findServices([svc({ c: { a: [65, null] } })], profile());
+    expect(r.ageCheck).toBe(false);
+  });
+  it("나이가 맞는 서비스를 먼저 보여준다", () => {
+    const inRange = svc({ id: "a", v: 1, c: { a: [18, 39] } });
+    const out = svc({ id: "b", v: 99, c: { a: [60, null] } });
+    expect(findServices([out, inRange], profile({ age: 30 })).map((r) => r.id)).toEqual(["a", "b"]);
   });
 });
 
@@ -97,11 +105,11 @@ describe.skipIf(!existsSync(REAL))("실데이터 불변식", () => {
       expect(ok, `${r.id} ${r.o}`).toBe(true);
     }
   });
-  it("30세 대상이 아닌 연령 제한 서비스는 없다", () => {
+  it("나이 코드 범위 밖인 결과는 모두 확인 표시가 붙는다", () => {
     for (const r of findServices(services, base)) {
       const [lo, hi] = r.c.a ?? [null, null];
-      expect(lo == null || 30 >= lo, r.id).toBe(true);
-      expect(hi == null || 30 <= hi, r.id).toBe(true);
+      const out = (lo != null && 30 < lo) || (hi != null && 30 > hi);
+      expect(r.ageCheck, r.id).toBe(out);
     }
   });
   it("임산부 선택 시 결과가 늘고 임산부 코드 서비스가 포함", () => {

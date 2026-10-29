@@ -169,6 +169,7 @@ export default function App() {
               {s.f && <span>{s.f}</span>}
               {s.o && <span>{s.o}</span>}
               {s.uncertain && <span className="warn">조건 정보 없음 · 직접 확인</span>}
+              {s.ageCheck && <span className="warn">나이 조건 확인 필요</span>}
             </div>
             <h2><a className="plain" href={`/p/${s.id}`}>{s.n}</a></h2>
             {s.t && <p><b>대상</b> {s.t}</p>}

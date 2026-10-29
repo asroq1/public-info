@@ -64,11 +64,7 @@ export function matchService(service, profile) {
   const individualFlags = (c.p?.length ?? 0) + (c.h?.length ?? 0) > 0;
   if (c.b && !individualFlags && !profile.business) return false;
 
-  if (profile.age != null && c.a) {
-    const [lo, hi] = c.a;
-    if (lo != null && profile.age < lo) return false;
-    if (hi != null && profile.age > hi) return false;
-  }
+  // 나이 코드는 실제 요건과 다른 경우가 있어 제외 기준으로 쓰지 않고 findServices 에서 확인 표시만 한다
   if (profile.sex && c.g && !c.g.includes(profile.sex)) return false;
   if (profile.income && c.i && !c.i.includes(profile.income)) return false;
   if (!matchesTraits(c.p, profile.persons, NO_PERSON_TRAIT)) return false;
@@ -76,9 +72,21 @@ export function matchService(service, profile) {
   return true;
 }
 
+// 입력한 나이가 공공데이터의 나이 코드 범위 밖인지
+export function ageOutOfRange(service, profile) {
+  const range = service.c?.a;
+  if (profile.age == null || !range) return false;
+  const [lo, hi] = range;
+  return (lo != null && profile.age < lo) || (hi != null && profile.age > hi);
+}
+
 export function findServices(services, profile) {
   return services
     .filter((s) => matchService(s, profile))
-    .sort((a, b) => b.v - a.v)
-    .map((s) => ({ ...s, uncertain: Boolean(s.c?.nc) }));
+    .sort((a, b) => ageOutOfRange(a, profile) - ageOutOfRange(b, profile) || b.v - a.v)
+    .map((s) => ({
+      ...s,
+      uncertain: Boolean(s.c?.nc),
+      ageCheck: ageOutOfRange(s, profile),
+    }));
 }
