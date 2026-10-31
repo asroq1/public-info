@@ -71,8 +71,8 @@ a { color: var(--brand); text-underline-offset: 3px; }
 .site-header { background: var(--surface); border-bottom: 1px solid var(--line); }
 .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
-.logo { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: grid; place-items: center; }
-.logo svg { width: 18px; height: 18px; }
+.logo { width: 32px; height: 32px; flex: none; display: block; }
+.logo svg { width: 100%; height: 100%; display: block; }
 .nav-link { font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 12px; border-radius: 999px; }
 .nav-link:hover { background: var(--brand-soft); }
 .site-footer { margin-top: 56px; padding: 28px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.7; }

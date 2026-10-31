@@ -142,11 +142,7 @@ export default function App() {
       <header className="site-header">
         <div className="wrap">
           <a className="brand" href="/">
-            <span className="logo" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12.5l4.2 4.2L19 7" />
-              </svg>
-            </span>
+            <span className="logo" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="#4F8DFF"/><stop offset="1" stopColor="#1D4ED8"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg)"/><circle cx="16" cy="16.8" r="9.2" fill="#0B2A8F" opacity=".18"/><circle cx="16" cy="16" r="9.2" fill="#fff"/><path d="M11.8 16.4l3 3 5.6-6.4" fill="none" stroke="#1D4ED8" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/><circle cx="24.6" cy="7.4" r="2.2" fill="#FBBF24"/></svg></span>
             내 혜택 찾기
           </a>
           <div className="header-actions">
