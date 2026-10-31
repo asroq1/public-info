@@ -3,7 +3,10 @@
 {% block main %}
 <main class="wrap doc">
   <nav class="crumbs"><a href="/">내 혜택 찾기</a> › {{ field }}</nav>
-  <h1>{{ field }} 지원 서비스</h1>
+  <div class="banner" style="--h: {{ art.hue }}; margin-bottom: 18px">
+    <span class="thumb thumb-lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="{{ art.d }}"/></svg></span>
+    <div><h1>{{ field }} 지원 서비스</h1></div>
+  </div>
   <p class="lead">조회가 많은 {{ field }} 분야 지원 {{ items | length }}건입니다. 전체 {{ total }}건 중 인기순이며, 내 조건에 맞는 것만 보려면 <a href="/">혜택 찾기</a>를 이용하세요.</p>
   <section class="card">
     <ul class="link-list">{% for r in items %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}<span class="muted">{{ r["소관기관명"] }}</span></a></li>{% endfor %}</ul>

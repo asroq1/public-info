@@ -5,12 +5,17 @@
 {% block main %}
 <main class="wrap doc">
   <nav class="crumbs"><a href="/">내 혜택 찾기</a> › <a href="{{ field_url }}">{{ s["서비스분야"] }}</a></nav>
-  <div class="badges">
-    <span class="badge badge-brand">{{ s["서비스분야"] }}</span>
-    {% if s["지원유형"] %}<span class="badge">{{ s["지원유형"] }}</span>{% endif %}
+  <div class="banner" style="--h: {{ art.hue }}">
+    <span class="thumb thumb-lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="{{ art.d }}"/></svg></span>
+    <div>
+      <div class="badges">
+        <span class="badge badge-brand">{{ s["서비스분야"] }}</span>
+        {% if s["지원유형"] %}<span class="badge">{{ s["지원유형"] }}</span>{% endif %}
+      </div>
+      <h1>{{ s["서비스명"] }}</h1>
+    </div>
   </div>
-  <h1>{{ s["서비스명"] }}</h1>
-  {% if s["서비스목적요약"] %}<p class="lead">{{ s["서비스목적요약"] }}</p>{% endif %}
+  {% if s["서비스목적요약"] %}<p class="lead" style="margin-top:18px">{{ s["서비스목적요약"] }}</p>{% endif %}
 
   <dl class="facts card">
     <div><dt>소관기관</dt><dd>{{ s["소관기관명"] }}</dd></div>

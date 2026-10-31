@@ -102,3 +102,23 @@ def test_meta_description_fits_naver_limit():
     html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
     desc = re.search(r'<meta name="description" content="([^"]*)"', html).group(1)
     assert len(htmllib.unescape(desc)) <= 80  # 브라우저가 읽는 글자 수 기준
+
+
+def test_field_art_per_field_and_fallback():
+    assert bp.field_art("주거·자립")["hue"] != bp.field_art("보건·의료")["hue"]
+    assert bp.field_art("없는 분야") == bp.field_art("기타")
+    assert bp.field_art(None) == bp.field_art("기타")
+
+
+def test_policy_page_has_field_banner():
+    s = {**SERVICE, "conditions": {}}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    assert 'class="banner"' in html and f'--h: {bp.field_art("생활안정")["hue"]}' in html
+
+
+def test_every_real_field_has_icon():
+    import json as _json
+    full = _json.loads(bp.FULL_PATH.read_text(encoding="utf-8")) if bp.FULL_PATH.exists() else []
+    fields = {s.get("서비스분야") for s in full if s.get("서비스분야")}
+    missing = [f for f in fields if f not in bp.FIELD_ICONS]
+    assert not missing, f"아이콘이 없는 분야: {missing}"

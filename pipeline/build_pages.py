@@ -19,6 +19,14 @@ FULL_PATH = ROOT / "build" / "full.json"
 PUBLIC = ROOT.parent / "web" / "public"
 SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
 
+FIELD_ICONS = json.loads((ROOT.parent / "web" / "src" / "fieldIcons.json").read_text(encoding="utf-8"))
+
+
+def field_art(field: str | None) -> dict:
+    """분야별 일러스트(색상·아이콘). 알 수 없는 분야는 '기타'."""
+    return FIELD_ICONS.get(field or "", FIELD_ICONS["기타"])
+
+
 SECTIONS = [
     ("지원대상", "지원대상"),
     ("선정기준", "선정기준"),
@@ -110,6 +118,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         who=describe_conditions(s.get("conditions") or {}),
         no_conditions=bool((s.get("conditions") or {}).get("nc")),
         field_url=field_urls.get(s.get("서비스분야"), "/"),
+        art=field_art(s.get("서비스분야")),
         updated=updated,
     )
 
@@ -117,6 +126,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
 def render_field(field: str, items: list[dict], total: int, num: int, updated: str) -> str:
     return env.get_template("field.html.j2").render(
         field=field,
+        art=field_art(field),
         items=items,
         total=total,
         updated=updated,

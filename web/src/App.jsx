@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Subscribe from "./Subscribe.jsx";
+import FIELD_ICONS from "./fieldIcons.json";
 import {
   HOUSEHOLD_TRAITS,
   INCOME_LABELS,
@@ -40,6 +41,15 @@ const Icon = ({ name }) => {
     </svg>
   );
 };
+
+function FieldThumb({ field }) {
+  const icon = FIELD_ICONS[field] ?? FIELD_ICONS["기타"];
+  return (
+    <span className="thumb" style={{ "--h": icon.hue }} aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d={icon.d} /></svg>
+    </span>
+  );
+}
 
 function Chips({ options, selected, onToggle }) {
   return (
@@ -288,14 +298,19 @@ export default function App() {
             <ul className="list">
               {results.slice(0, shown).map((s) => (
                 <li key={s.id} className="card result">
-                  <div className="badges">
-                    {recentIds.has(s.id) && <span className="badge badge-ok">신규</span>}
-                    {s.f && <span className="badge badge-brand">{s.f}</span>}
-                    {s.o && <span className="badge">{s.o}</span>}
-                    {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}
-                    {s.ageCheck && <span className="badge badge-warn">나이 조건 확인 필요</span>}
+                  <div className="result-top">
+                    <FieldThumb field={s.f} />
+                    <div>
+                      <div className="badges">
+                        {recentIds.has(s.id) && <span className="badge badge-ok">신규</span>}
+                        {s.f && <span className="badge badge-brand">{s.f}</span>}
+                        {s.o && <span className="badge">{s.o}</span>}
+                        {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}
+                        {s.ageCheck && <span className="badge badge-warn">나이 조건 확인 필요</span>}
+                      </div>
+                      <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
+                    </div>
                   </div>
-                  <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
                   <dl className="kv">
                     {s.t && (<><dt>대상</dt><dd>{s.t}</dd></>)}
                     {s.d && (<><dt>기한</dt><dd className="one">{s.d}</dd></>)}
