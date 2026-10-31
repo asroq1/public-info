@@ -23,10 +23,17 @@
     {% if s["전화문의"] %}<div><dt>문의</dt><dd>{{ s["전화문의"] }}</dd></div>{% endif %}
   </dl>
 
+  {% set ext_icon %}<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>{% endset %}
   <div class="cta-row">
-    <a class="btn btn-primary" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 페이지에서 신청·확인하기 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg></a>
+    {% if detail.apply_url %}
+    <a class="btn btn-primary" href="{{ detail.apply_url }}" rel="noopener nofollow" target="_blank">온라인으로 신청하기 {{ ext_icon }}</a>
+    <a class="btn" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 상세 페이지 보기 {{ ext_icon }}</a>
+    {% else %}
+    <a class="btn btn-primary" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 페이지에서 신청·확인하기 {{ ext_icon }}</a>
+    {% endif %}
     <a class="btn" href="/">내 조건에 맞는 다른 혜택 찾기</a>
   </div>
+  {% if detail.apply_url %}<p class="muted" style="margin-top:8px">신청 사이트 주소는 공공데이터에 등록된 값이며 변경되었을 수 있습니다.</p>{% endif %}
 
   {% if no_conditions %}
   <section class="who card">
@@ -53,6 +60,31 @@
   </section>
   {% endif %}
   {% endfor %}
+
+  {% if detail.docs or detail.docs_official or detail.docs_self %}
+  <section class="card">
+    <h2>필요한 서류</h2>
+    {% if detail.docs %}<ul class="plain-list">{% for line in detail.docs %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+    {% if detail.docs_official %}
+    <h3 class="sub">담당 공무원이 확인하는 서류</h3>
+    <ul class="plain-list">{% for line in detail.docs_official %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if detail.docs_self %}
+    <h3 class="sub">본인 확인이 필요한 서류</h3>
+    <ul class="plain-list">{% for line in detail.docs_self %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if detail.laws or detail.local_rules %}
+  <section class="card">
+    <h2>근거 법령</h2>
+    <ul class="plain-list">
+      {% for name in detail.laws %}<li>{{ name }}</li>{% endfor %}
+      {% for name in detail.local_rules %}<li>{{ name }} <span class="muted">(자치법규)</span></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
   {% if related %}
   <section class="card">

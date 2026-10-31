@@ -122,3 +122,27 @@ def test_every_real_field_has_icon():
     fields = {s.get("서비스분야") for s in full if s.get("서비스분야")}
     missing = [f for f in fields if f not in bp.FIELD_ICONS]
     assert not missing, f"아이콘이 없는 분야: {missing}"
+
+
+def _page(detail, **kw):
+    s = {**SERVICE, "conditions": {}, "detail": detail}
+    return bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+
+
+def test_apply_button_and_documents_render():
+    html = _page({"apply_url": "https://apply.go.kr/x", "docs": ["신분증", "통장 사본"], "laws": ["민법"]})
+    assert 'href="https://apply.go.kr/x"' in html and "온라인으로 신청하기" in html
+    assert 'href="https://example.gov/x?a=1&amp;b=2"' in html  # 공식 상세 페이지 링크도 유지
+    assert "<h2>필요한 서류</h2>" in html and "통장 사본" in html
+    assert "<h2>근거 법령</h2>" in html and "<li>민법</li>" in html
+
+
+def test_without_detail_falls_back_to_official_page_button():
+    html = _page({})
+    assert "공식 페이지에서 신청·확인하기" in html
+    assert "온라인으로 신청하기" not in html and "필요한 서류" not in html and "근거 법령" not in html
+
+
+def test_detail_text_is_escaped():
+    html = _page({"docs": ["<img src=x onerror=alert(1)>"], "laws": ["<script>x</script>법"]})
+    assert "<img src=x" not in html and "<script>x</script>" not in html

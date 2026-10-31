@@ -119,6 +119,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         no_conditions=bool((s.get("conditions") or {}).get("nc")),
         field_url=field_urls.get(s.get("서비스분야"), "/"),
         art=field_art(s.get("서비스분야")),
+        detail=s.get("detail") or {},
         updated=updated,
     )
 

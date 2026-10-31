@@ -14,6 +14,7 @@ import httpx
 
 from app.changes import content_hash, diff, merge_history, recent_registered
 from app.conditions import parse_conditions
+from app.detail import build_detail
 from app.gov24 import fetch_all
 
 ROOT = Path(__file__).resolve().parent
@@ -23,6 +24,7 @@ FULL_PATH = ROOT / "build" / "full.json"
 MIN_SERVICES = 8000          # 이보다 적으면 비정상 응답으로 본다
 MAX_DROP_RATIO = 0.10        # 직전 대비 10% 넘게 줄면 중단
 MAX_MISSING_COND_RATIO = 0.25  # 지원조건이 없는 서비스 비율 상한
+MIN_DETAIL_RATIO = 0.90        # 상세 정보를 받지 못한 서비스가 이보다 많으면 중단
 HASHES_PATH = INDEX_PATH.parent / "hashes.json"
 CHANGES_PATH = INDEX_PATH.parent / "changes.json"
 SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
@@ -37,6 +39,9 @@ def clip(text: str | None, limit: int) -> str:
 def build() -> tuple[list[dict], list[dict]]:
     services = fetch_all("serviceList")
     conditions = {r["서비스ID"]: r for r in fetch_all("supportConditions")}
+    details = {r["서비스ID"]: r for r in fetch_all("serviceDetail")}
+    if services and len(details) < len(services) * MIN_DETAIL_RATIO:
+        raise SystemExit(f"상세 정보를 충분히 받지 못해 중단합니다: {len(details)}/{len(services)}")
 
     index, full = [], []
     for s in services:
@@ -55,7 +60,7 @@ def build() -> tuple[list[dict], list[dict]]:
             "v": int(s.get("조회수") or 0),
             "c": cond,
         })
-        full.append({**s, "conditions": cond})
+        full.append({**s, "conditions": cond, "detail": build_detail(details.get(sid))})
     return index, full
 
 

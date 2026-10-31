@@ -162,3 +162,8 @@ a { color: var(--brand); text-underline-offset: 3px; }
 .banner > div { min-width: 0; }
 .banner h1 { margin: 10px 0 0; }
 @media (max-width: 560px) { .banner { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; } .thumb-lg { --s: 64px; } }
+
+.plain-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.plain-list li { position: relative; padding: 6px 0 6px 16px; color: var(--fg-2); }
+.plain-list li::before { content: ""; position: absolute; left: 2px; top: 1.1em; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); opacity: .55; }
+.doc h3.sub { font-size: 14px; margin: 16px 0 0; color: var(--fg); }
