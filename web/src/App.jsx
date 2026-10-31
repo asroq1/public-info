@@ -32,6 +32,7 @@ const Icon = ({ name }) => {
     lock: <path d="M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z" />,
     refresh: <path d="M20 12a8 8 0 10-2.3 5.7M20 5v5h-5" />,
     search: <path d="M11 4a7 7 0 100 14 7 7 0 000-14zm9 16l-4-4" />,
+    external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />,
   };
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -295,7 +296,7 @@ export default function App() {
                   </dl>
                   <div className="actions">
                     <a className="btn" href={`/p/${s.id}`}>자세히 보기</a>
-                    <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 ↗</a>
+                    <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
                   </div>
                 </li>
               ))}

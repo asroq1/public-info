@@ -135,3 +135,5 @@ a { color: var(--brand); text-underline-offset: 3px; }
   .who dl { grid-template-columns: 1fr; gap: 2px; }
   .who dd { margin-bottom: 8px; }
 }
+
+.ico, .btn svg { width: 16px; height: 16px; flex: none; }

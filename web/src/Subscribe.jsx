@@ -70,7 +70,7 @@ export default function Subscribe({ profile }) {
 
   return (
     <section className="card panel subscribe">
-      <h3>🔔 새 지원 알림 받기</h3>
+      <h3>새 지원 알림 받기</h3>
       <p className="muted" style={{ marginTop: 6 }}>
         왼쪽에 입력한 조건에 맞는 지원이 새로 등록되거나 바뀌면 이메일로 알려드립니다.
       </p>

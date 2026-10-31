@@ -21,7 +21,7 @@ export function renderDigest({ added, updated }, { siteName, siteUrl, date, unsu
     const shown = items.slice(0, MAX_PER_SECTION);
     const more = items.length - shown.length;
     const text =
-      `■ ${title}\n` +
+      `[${title}]\n` +
       shown.map((s) => `- ${s.n} (${s.o})\n  ${siteUrl}/p/${s.id}`).join("\n") +
       (more > 0 ? `\n  …외 ${more}건` : "") +
       "\n\n";
