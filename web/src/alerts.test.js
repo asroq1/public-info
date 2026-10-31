@@ -57,6 +57,21 @@ describe("알림 매칭", () => {
   });
 });
 
+describe("알림에서 마감된 지원 제외", () => {
+  it("신청 기간이 끝난 신규·변경 건은 보내지 않는다", () => {
+    const changes = {
+      new: [item({ id: "n1", dl: { b: 20260101, e: 20260131 } }), item({ id: "n2", dl: { e: 20261231 } })],
+      updated: [item({ id: "u1", dl: { e: 20261030 } })],
+    };
+    const m = matchDigest({ ...emptyProfile(), region: "서울" }, changes, 20261031);
+    expect(m.added.map((s) => s.id)).toEqual(["n2"]);
+    expect(m.updated).toEqual([]);
+  });
+  it("모두 마감이면 null", () => {
+    expect(matchDigest({ ...emptyProfile(), region: "서울" }, { new: [item({ dl: { e: 20200101 } })], updated: [] }, 20261031)).toBeNull();
+  });
+});
+
 describe("메일 본문", () => {
   const ctx = { siteName: "내 혜택 찾기", siteUrl: "https://s.kr", date: "2026-10-30", unsubscribeUrl: "https://s.kr/api/unsubscribe?t=abc" };
   it("HTML 이스케이프와 링크, 수신거부", () => {

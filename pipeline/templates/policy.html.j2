@@ -33,6 +33,13 @@
     {% endif %}
     <a class="btn" href="/">내 조건에 맞는 다른 혜택 찾기</a>
   </div>
+  {% if deadline.state == "closed" %}
+  <div class="notice-card warn" role="status"><b>신청 기간이 끝난 것으로 보여요.</b> 종료일 {{ deadline.end_fmt }}. 다음 모집 일정은 공식 페이지에서 확인하세요.</div>
+  {% elif deadline.state == "upcoming" %}
+  <div class="notice-card info" role="status"><b>접수 예정</b> · {{ deadline.start_fmt }}부터{% if deadline.end_fmt %} {{ deadline.end_fmt }}까지{% endif %}</div>
+  {% elif deadline.state == "open" %}
+  <div class="notice-card {{ 'warn' if deadline.dday <= 7 else 'info' }}" role="status"><b>신청 마감 {{ deadline.end_fmt }}</b> · {% if deadline.dday == 0 %}오늘 마감{% else %}D-{{ deadline.dday }}{% endif %}</div>
+  {% endif %}
   {% if detail.apply_url %}<p class="muted" style="margin-top:8px">신청 사이트 주소는 공공데이터에 등록된 값이며 변경되었을 수 있습니다.</p>{% endif %}
 
   {% if no_conditions %}

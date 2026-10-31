@@ -30,5 +30,8 @@ export const html = (body, status = 200) =>
 
 export const siteOrigin = (env, request) => (env.SITE_URL || new URL(request.url).origin).replace(/\/$/, "");
 
+/** 한국 날짜를 YYYYMMDD 정수로 */
+export const kstTodayInt = () => Number(new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", ""));
+
 export const today = () =>
   new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // KST 날짜

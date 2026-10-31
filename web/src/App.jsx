@@ -70,6 +70,23 @@ function Chips({ options, selected, onToggle }) {
   );
 }
 
+// 20261231 -> '12.31' (올해가 아니면 '2027.1.5')
+function shortDate(n) {
+  const y = Math.floor(n / 10000);
+  const md = `${Math.floor(n / 100) % 100}.${n % 100}`;
+  return y === new Date().getFullYear() ? md : `${y}.${md}`;
+}
+
+function DeadlineBadge({ deadline }) {
+  if (!deadline) return null;
+  if (deadline.state === "closed") return <span className="badge badge-muted">신청 기간 종료</span>;
+  if (deadline.state === "upcoming") return <span className="badge badge-brand">접수 예정 {shortDate(deadline.start)}~</span>;
+  if (deadline.dday <= 7) {
+    return <span className="badge badge-warn">{deadline.dday === 0 ? "오늘 마감" : `마감 D-${deadline.dday}`}</span>;
+  }
+  return <span className="badge">{shortDate(deadline.end)}까지</span>;
+}
+
 function summarize(p) {
   const parts = [];
   if (p.birthYear) parts.push(`${p.birthYear}년생`);
@@ -132,6 +149,11 @@ export default function App() {
   const recentIds = useMemo(() => new Set(recent.map((r) => r.id)), [recent]);
 
   const results = useMemo(() => (data ? findServices(data.services, profile) : []), [data, profile]);
+  // 신청 기간이 끝나서 숨긴 건수(같은 조건에서 마감 건을 포함했을 때와의 차이)
+  const hiddenClosed = useMemo(
+    () => (data && !profile.showClosed ? findServices(data.services, { ...profile, showClosed: true }).length - results.length : 0),
+    [data, profile, results],
+  );
   const fields = useMemo(
     () => (data ? [...new Set(data.services.map((s) => s.f).filter(Boolean))].sort() : []),
     [data],
@@ -349,6 +371,10 @@ export default function App() {
                   <option key={f}>{f}</option>
                 ))}
               </select>
+              <select className="select" aria-label="정렬" value={profile.sort} onChange={(e) => set({ sort: e.target.value })}>
+                <option value="popular">인기순</option>
+                <option value="deadline">마감 임박순</option>
+              </select>
             </div>
 
             <div className="results-head">
@@ -357,6 +383,15 @@ export default function App() {
               </h2>
               {data && <span className="muted">데이터 기준 {data.meta.updated}</span>}
             </div>
+            {data && (hiddenClosed > 0 || profile.showClosed) && (
+              <p className="closed-note" role="status">
+                {profile.showClosed ? (
+                  <>마감된 지원도 함께 보고 있어요. <button type="button" className="link-btn inline" onClick={() => set({ showClosed: false })}>마감 숨기기</button></>
+                ) : (
+                  <>신청 기간이 끝난 지원 {hiddenClosed.toLocaleString()}건은 숨겼어요. <button type="button" className="link-btn inline" onClick={() => set({ showClosed: true })}>마감된 지원도 보기</button></>
+                )}
+              </p>
+            )}
 
             {loading && (
               <ul className="list" aria-hidden="true">
@@ -374,12 +409,13 @@ export default function App() {
 
             <ul className="list">
               {results.slice(0, shown).map((s) => (
-                <li key={s.id} className="card result">
+                <li key={s.id} className={`card result${s.deadline?.state === "closed" ? " closed" : ""}`}>
                   <div className="result-top">
                     <FieldThumb field={s.f} />
                     <div>
                       <div className="badges">
                         {recentIds.has(s.id) && <span className="badge badge-ok">신규</span>}
+                        <DeadlineBadge deadline={s.deadline} />
                         {s.f && <span className="badge badge-brand">{s.f}</span>}
                         {s.o && <span className="badge">{s.o}</span>}
                         {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}

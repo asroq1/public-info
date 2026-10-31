@@ -167,3 +167,19 @@ def test_every_field_has_a_share_image_file():
     assert len(slugs) == len(set(slugs)), "slug 중복"
     missing = [s for s in slugs if not (og_dir / f"{s}.png").exists()]
     assert not missing, f"공유 이미지가 없는 분야: {missing} (scripts/make_og.py 를 실행하세요)"
+
+
+def test_deadline_notice_on_policy_page():
+    base = {**SERVICE, "conditions": {}}
+    closed = bp.render_policy({**base, "deadline": {"b": 20260101, "e": 20260131}}, [], {}, "d", 20261031)
+    assert "신청 기간이 끝난 것으로 보여요" in closed and "2026.01.31" in closed
+    soon = bp.render_policy({**base, "deadline": {"e": 20261103}}, [], {}, "d", 20261031)
+    assert "D-3" in soon and "notice-card warn" in soon
+    far = bp.render_policy({**base, "deadline": {"e": 20261231}}, [], {}, "d", 20261031)
+    assert "D-61" in far and "notice-card info" in far
+    today_ = bp.render_policy({**base, "deadline": {"e": 20261031}}, [], {}, "d", 20261031)
+    assert "오늘 마감" in today_
+    upcoming = bp.render_policy({**base, "deadline": {"b": 20261201, "e": 20261215}}, [], {}, "d", 20261031)
+    assert "접수 예정" in upcoming
+    none = bp.render_policy({**base, "deadline": {}}, [], {}, "d", 20261031)
+    assert "notice-card" not in none

@@ -33,7 +33,7 @@ export const INCOME_LABELS = {
 
 export const emptyProfile = () => ({
   age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "",
-  persons: [], households: [], business: false, field: "", q: "",
+  persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular",
 });
 
 function matchesRegion(service, region) {
@@ -49,11 +49,31 @@ function matchesTraits(serviceCodes, selected, noneCode) {
   return wanted.some((code) => serviceCodes.includes(code));
 }
 
-export function matchService(service, profile) {
+/** 오늘 날짜를 YYYYMMDD 정수로. 브라우저 기기의 날짜를 쓴다. */
+export const todayInt = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+
+const dayNumber = (n) => Date.UTC(Math.floor(n / 10000), (Math.floor(n / 100) % 100) - 1, n % 100) / 86400000;
+
+/**
+ * 신청 기한 상태. service.dl = { b: 시작일, e: 종료일 } (파이프라인이 연도가 확실한 날짜만 채운다).
+ * closed: 종료일이 지남 / upcoming: 시작 전 / open: 종료일이 남음(dday = 남은 일수) / null: 알 수 없음
+ */
+export function deadlineState(service, today = todayInt()) {
+  const { b, e } = service.dl ?? {};
+  if (e != null && e < today) return { state: "closed", end: e };
+  if (b != null && b > today) return { state: "upcoming", start: b, end: e ?? null };
+  if (e != null) return { state: "open", end: e, dday: dayNumber(e) - dayNumber(today) };
+  return null;
+}
+
+export const isClosed = (service, today) => deadlineState(service, today)?.state === "closed";
+
+export function matchService(service, profile, today = todayInt()) {
   const c = service.c ?? {};
 
   if (!matchesRegion(service, profile.region)) return false;
   if (profile.field && service.f !== profile.field) return false;
+  if (!profile.showClosed && isClosed(service, today)) return false;
 
   if (profile.q) {
     const hay = `${service.n} ${service.s} ${service.t}`;
@@ -94,13 +114,32 @@ export function ageOutOfRange(service, profile, year) {
   return ages.every((age) => (lo != null && age < lo) || (hi != null && age > hi));
 }
 
-export function findServices(services, profile) {
-  return services
-    .filter((s) => matchService(s, profile))
-    .sort((a, b) => ageOutOfRange(a, profile) - ageOutOfRange(b, profile) || b.v - a.v)
+// 마감 임박순: 종료일이 가까운 것부터, 기한을 모르는 것은 뒤로(인기순), 마감된 것은 맨 뒤
+function deadlineRank(s) {
+  const st = s.deadline;
+  if (!st) return 1;
+  if (st.state === "open") return 0;
+  if (st.state === "upcoming") return 1;
+  return 2;
+}
+
+export function findServices(services, profile, today = todayInt()) {
+  const rows = services
+    .filter((s) => matchService(s, profile, today))
     .map((s) => ({
       ...s,
       uncertain: Boolean(s.c?.nc),
       ageCheck: ageOutOfRange(s, profile),
+      deadline: deadlineState(s, today),
     }));
+  const byPopular = (a, b) => Number(a.ageCheck) - Number(b.ageCheck) || b.v - a.v;
+  if (profile.sort === "deadline") {
+    return rows.sort(
+      (a, b) =>
+        deadlineRank(a) - deadlineRank(b) ||
+        (a.deadline?.state === "open" && b.deadline?.state === "open" ? a.deadline.dday - b.deadline.dday : 0) ||
+        byPopular(a, b),
+    );
+  }
+  return rows.sort(byPopular);
 }

@@ -144,3 +144,46 @@ describe.skipIf(!existsSync(REAL))("실데이터 불변식", () => {
     }
   });
 });
+
+import { deadlineState, isClosed, todayInt } from "./matcher.js";
+
+describe("신청 기한", () => {
+  const T = 20261031;
+  const d = (dl) => svc({ dl });
+  it("종료일이 지난 것만 마감", () => {
+    expect(deadlineState(d({ b: 20260401, e: 20260417 }), T).state).toBe("closed");
+    expect(deadlineState(d({ e: 20261030 }), T).state).toBe("closed");
+    expect(deadlineState(d({ e: 20261031 }), T)).toMatchObject({ state: "open", dday: 0 }); // 종료일 당일은 아직 열림
+    expect(deadlineState(d({ e: 20261103 }), T)).toMatchObject({ state: "open", dday: 3 });
+    expect(deadlineState(d({ e: 20261231 }), T).dday).toBe(61);
+    expect(deadlineState(d({ b: 20261201, e: 20261215 }), T).state).toBe("upcoming");
+  });
+  it("월·연 경계에서도 남은 일수가 정확", () => {
+    expect(deadlineState(d({ e: 20270105 }), 20261230).dday).toBe(6);
+    expect(deadlineState(d({ e: 20280229 }), 20280228).dday).toBe(1); // 윤년
+  });
+  it("기한 정보가 없거나 시작일만 있으면 판단하지 않는다", () => {
+    expect(deadlineState(svc({}), T)).toBeNull();
+    expect(deadlineState(d({ b: 20260301 }), T)).toBeNull();
+    expect(isClosed(svc({}), T)).toBe(false);
+  });
+  it("마감된 지원은 기본으로 숨기고 옵션으로 보여준다", () => {
+    const list = [svc({ id: "old", dl: { b: 20260101, e: 20260131 } }), svc({ id: "live", dl: { e: 20261231 } }), svc({ id: "always" })];
+    expect(findServices(list, profile(), T).map((s) => s.id).sort()).toEqual(["always", "live"]);
+    expect(findServices(list, profile({ showClosed: true }), T).map((s) => s.id).sort()).toEqual(["always", "live", "old"]);
+  });
+  it("마감 임박순: 가까운 마감 -> 기한 모름 -> 마감된 것", () => {
+    const list = [
+      svc({ id: "unknown", v: 100 }),
+      svc({ id: "later", v: 1, dl: { e: 20261231 } }),
+      svc({ id: "soon", v: 1, dl: { e: 20261103 } }),
+      svc({ id: "closed", v: 999, dl: { e: 20260101 } }),
+    ];
+    const ids = findServices(list, profile({ showClosed: true, sort: "deadline" }), T).map((s) => s.id);
+    expect(ids).toEqual(["soon", "later", "unknown", "closed"]);
+  });
+  it("todayInt 형식", () => {
+    expect(todayInt(new Date(2026, 9, 31))).toBe(20261031);
+    expect(todayInt(new Date(2027, 0, 5))).toBe(20270105);
+  });
+});

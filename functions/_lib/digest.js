@@ -1,11 +1,12 @@
 import { matchService } from "../../web/src/matcher.js";
-import { escapeHtml } from "./util.js";
+import { escapeHtml, kstTodayInt } from "./util.js";
 
 const MAX_PER_SECTION = 10;
 
 /** 구독자 프로필에 해당하는 오늘의 신규·변경 서비스. 둘 다 없으면 null. */
-export function matchDigest(profile, todayChanges) {
-  const pick = (items) => (items ?? []).filter((s) => matchService(s, profile));
+export function matchDigest(profile, todayChanges, today = kstTodayInt()) {
+  // 신청 기간이 이미 끝난 것은 알리지 않는다(showClosed 가 꺼진 프로필에서 matchService 가 걸러 준다)
+  const pick = (items) => (items ?? []).filter((s) => matchService(s, profile, today));
   const added = pick(todayChanges.new);
   const updated = pick(todayChanges.updated);
   if (!added.length && !updated.length) return null;

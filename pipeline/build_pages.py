@@ -8,10 +8,11 @@ import json
 import os
 import shutil
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.conditions import describe_conditions
+from app.deadline import status as deadline_status
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 ROOT = Path(__file__).resolve().parent
@@ -102,7 +103,11 @@ def related_for(s: dict, by_org: dict, by_field: dict, pos: dict) -> list[dict]:
     return out
 
 
-def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) -> str:
+def kst_today_int() -> int:
+    return int((datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y%m%d"))
+
+
+def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str, today: int | None = None) -> str:
     url = f"{SITE_URL}/p/{s['서비스ID']}" if SITE_URL else None
     org = s.get("소관기관명") or ""
     return env.get_template("policy.html.j2").render(
@@ -122,6 +127,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         site_url=SITE_URL,
         og_image=f"/og/{field_art(s.get('서비스분야'))['slug']}.png",
         detail=s.get("detail") or {},
+        deadline=deadline_status(s.get("deadline"), today if today is not None else kst_today_int()),
         updated=updated,
     )
 
@@ -183,10 +189,13 @@ def main() -> None:
         (PUBLIC / sub).mkdir(parents=True)
 
     entries: list[tuple[str, str | None]] = []
+    today_int = kst_today_int()
     for s in services:
-        html = render_policy(s, related_for(s, by_org, by_field, pos), field_urls, updated)
+        html = render_policy(s, related_for(s, by_org, by_field, pos), field_urls, updated, today_int)
         (PUBLIC / "p" / f"{s['서비스ID']}.html").write_text(html, encoding="utf-8")
-        entries.append((f"{SITE_URL}/p/{s['서비스ID']}", to_date(s.get("수정일시"))))
+        # 신청 기간이 끝난 정책 페이지는 남겨 두되, 검색엔진에 알리는 사이트맵에서는 뺀다
+        if deadline_status(s.get("deadline"), today_int).get("state") != "closed":
+            entries.append((f"{SITE_URL}/p/{s['서비스ID']}", to_date(s.get("수정일시"))))
 
     for i, f in enumerate(fields, start=1):
         items = by_field[f][:FIELD_PAGE_LIMIT]

@@ -123,3 +123,8 @@
 .explain div { margin-top: 6px; padding: 12px; background: var(--surface-2); border-radius: 12px; }
 .explain p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--fg-2); }
 .explain p + p { margin-top: 8px; }
+
+/* 신청 기한 */
+.result.closed { opacity: .72; }
+.closed-note { margin: -4px 2px 12px; font-size: 13.5px; color: var(--muted); }
+.link-btn.inline { padding: 2px 4px; margin: 0; color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }

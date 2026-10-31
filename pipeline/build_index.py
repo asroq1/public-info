@@ -14,6 +14,7 @@ import httpx
 
 from app.changes import content_hash, diff, merge_history, recent_registered
 from app.conditions import parse_conditions
+from app.deadline import parse_deadline
 from app.detail import build_detail
 from app.gov24 import fetch_all
 
@@ -47,6 +48,7 @@ def build() -> tuple[list[dict], list[dict]]:
     for s in services:
         sid = s.get("서비스ID")
         cond = parse_conditions(conditions.get(sid, {}))
+        dl = parse_deadline(s.get("신청기한"), s.get("신청기한유형"))
         index.append({
             "id": sid,
             "n": s.get("서비스명"),
@@ -59,8 +61,9 @@ def build() -> tuple[list[dict], list[dict]]:
             "u": s.get("상세조회URL"),
             "v": int(s.get("조회수") or 0),
             "c": cond,
+            **({"dl": dl} if dl else {}),
         })
-        full.append({**s, "conditions": cond, "detail": build_detail(details.get(sid))})
+        full.append({**s, "conditions": cond, "detail": build_detail(details.get(sid)), "deadline": dl})
     return index, full
 
 
@@ -125,10 +128,10 @@ def detect_changes(
 def today_items(index: list[dict], entry: dict) -> dict:
     """알림 발송용으로 오늘의 신규·변경 서비스의 매칭에 필요한 필드만 담는다."""
     by_id = {r["id"]: r for r in index}
-    keep = ("id", "n", "o", "ot", "f", "u", "d", "c")
+    keep = ("id", "n", "o", "ot", "f", "u", "d", "c", "dl")
 
     def pick(ids: list[str]) -> list[dict]:
-        return [{k: by_id[i][k] for k in keep} for i in ids if i in by_id]
+        return [{k: by_id[i][k] for k in keep if k in by_id[i]} for i in ids if i in by_id]
 
     return {"date": entry["date"], "new": pick(entry["new"]), "updated": pick(entry["updated"])}
 
