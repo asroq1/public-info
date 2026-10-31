@@ -45,6 +45,7 @@ const Icon = ({ name }) => {
     lock: <path d="M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z" />,
     refresh: <path d="M20 12a8 8 0 10-2.3 5.7M20 5v5h-5" />,
     search: <path d="M11 4a7 7 0 100 14 7 7 0 000-14zm9 16l-4-4" />,
+    check: <path d="M5 12.5l4.2 4.2L19 7" />,
     external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />,
   };
   return (
@@ -71,6 +72,28 @@ function Chips({ options, selected, onToggle }) {
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+const REASON_TITLES = {
+  age: "공공데이터의 나이 조건 기준이며 실제와 다를 수 있어요",
+  income: "공공데이터의 소득 조건 기준이며, 실제 선정은 재산 등을 더해 판단해요",
+};
+
+// 내 조건 중 이 지원의 제한 조건과 맞은 부분
+function Reasons({ reasons }) {
+  if (!reasons?.length) return null;
+  const MAX = 4;
+  const shown = reasons.slice(0, MAX);
+  const extra = reasons.length - shown.length;
+  return (
+    <div className="reasons" role="group" aria-label="내 조건과 맞는 점">
+      <span className="reasons-label"><Icon name="check" />맞는 조건</span>
+      {shown.map((r) => (
+        <span key={`${r.kind}-${r.label}`} className={`reason reason-${r.kind}`} title={REASON_TITLES[r.kind]}>{r.label}</span>
+      ))}
+      {extra > 0 && <span className="reason-more">+{extra}</span>}
     </div>
   );
 }
@@ -463,6 +486,7 @@ export default function App() {
                       <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
                     </div>
                   </div>
+                  <Reasons reasons={s.reasons} />
                   <dl className="kv">
                     {s.t && (<><dt>대상</dt><dd>{s.t}</dd></>)}
                     {s.d && (<><dt>기한</dt><dd className="one">{s.d}</dd></>)}

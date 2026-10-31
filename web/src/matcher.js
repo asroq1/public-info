@@ -136,6 +136,61 @@ export function ageOutOfRange(service, profile, year) {
   return ages.every((age) => (lo != null && age < lo) || (hi != null && age > hi));
 }
 
+// ---- 일치 이유 -------------------------------------------------------------------------------
+// 카드에 "내 조건 중 무엇이 이 지원의 제한 조건과 맞았는지"를 보여준다.
+// 틀린 칩이 붙으면 오해를 만들므로, 정책에 실제로 제한이 있고 내 입력이 그 제한에 들어갈 때만 만든다.
+//  - 상황·가구: '해당사항없음' 코드가 함께 켜져 있으면 사실상 전체 대상이라 칩을 만들지 않는다. 대상이 너무 많은 것도 제외.
+//  - 소득: 구간 5개가 모두 켜져 있으면 제한이 아니다.
+const MAX_SPECIFIC_TRAITS = 4;
+const INCOME_UPPER = { 1: 50, 2: 75, 3: 100, 4: 200 };
+const INCOME_LOWER = { 1: 0, 2: 50, 3: 75, 4: 100, 5: 200 };
+
+/** 소득 구간 목록(연속일 때)을 '중위소득 100% 이하' 같은 말로. 연속이 아니면 null. */
+function incomeRuleLabel(list) {
+  const s = [...list].sort((x, y) => x - y);
+  if (!s.every((v, i) => i === 0 || v === s[i - 1] + 1)) return null;
+  const lo = s[0];
+  const hi = s[s.length - 1];
+  if (lo === 1) return `중위소득 ${INCOME_UPPER[hi]}% 이하`;
+  if (hi === 5) return `중위소득 ${INCOME_LOWER[lo]}% 초과`;
+  return `중위소득 ${INCOME_LOWER[lo]}~${INCOME_UPPER[hi]}%`;
+}
+
+function traitReasons(codes, selected, noneCode, labels, kind) {
+  if (!codes?.length || codes.includes(noneCode) || codes.length > MAX_SPECIFIC_TRAITS) return [];
+  return selected.filter((code) => codes.includes(code)).map((code) => ({ kind, label: labels[code] }));
+}
+
+export function matchReasons(service, profile, year) {
+  const c = service.c ?? {};
+  const out = [];
+
+  if (profile.region) {
+    if (!service.r) {
+      if (NATIONWIDE_ORG_TYPES.has(service.ot)) out.push({ kind: "region", label: "전국 공통" });
+    } else if (service.r === profile.region) {
+      const district = service.g && (!profile.district || service.g === profile.district) ? service.g : "";
+      out.push({ kind: "region", label: district ? `${regionLabel(service.r)} ${district}` : `${regionLabel(service.r)} 전체` });
+    }
+  }
+
+  out.push(...traitReasons(c.p, profile.persons, NO_PERSON_TRAIT, PERSON_TRAITS, "person"));
+  out.push(...traitReasons(c.h, profile.households, NO_HOUSEHOLD_TRAIT, HOUSEHOLD_TRAITS, "household"));
+
+  if (profile.income && c.i?.length && c.i.length < 5 && c.i.includes(profile.income)) {
+    const label = incomeRuleLabel(c.i);
+    if (label) out.push({ kind: "income", label });
+  }
+  if (profile.sex && c.g?.length === 1 && c.g.includes(profile.sex)) {
+    out.push({ kind: "sex", label: profile.sex === "F" ? "여성 대상" : "남성 대상" });
+  }
+  if (c.a && (c.a[0] != null || c.a[1] != null) && candidateAges(profile, year).length && !ageOutOfRange(service, profile, year)) {
+    const [lo, hi] = c.a;
+    out.push({ kind: "age", label: lo != null && hi != null ? `만 ${lo}~${hi}세` : lo != null ? `만 ${lo}세 이상` : `만 ${hi}세 이하` });
+  }
+  return out;
+}
+
 // 마감 임박순: 종료일이 가까운 것부터, 기한을 모르는 것은 뒤로(인기순), 마감된 것은 맨 뒤
 function deadlineRank(s) {
   const st = s.deadline;
@@ -153,6 +208,7 @@ export function findServices(services, profile, today = todayInt()) {
       uncertain: Boolean(s.c?.nc),
       ageCheck: ageOutOfRange(s, profile),
       deadline: deadlineState(s, today),
+      reasons: matchReasons(s, profile),
     }));
   const byPopular = (a, b) => Number(a.ageCheck) - Number(b.ageCheck) || b.v - a.v;
   if (profile.sort === "deadline") {

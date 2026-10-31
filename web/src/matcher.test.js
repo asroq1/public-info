@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
+import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchReasons, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
 
 const svc = (over = {}) => ({
   id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", r: "서울특별시", g: "강남구", f: "생활안정",
@@ -248,5 +248,131 @@ describe("신청 기한", () => {
   it("todayInt 형식", () => {
     expect(todayInt(new Date(2026, 9, 31))).toBe(20261031);
     expect(todayInt(new Date(2027, 0, 5))).toBe(20270105);
+  });
+});
+
+
+describe("일치 이유(칩)", () => {
+  const Y = 2026;
+  const labels = (service, p) => matchReasons(service, profile(p), Y).map((r) => r.label);
+
+  it("지역: 시·군·구, 시·도 전체, 전국 공통", () => {
+    expect(labels(svc({ r: "서울특별시", g: "강남구" }), { region: "서울특별시", district: "강남구" })).toEqual(["서울 강남구"]);
+    expect(labels(svc({ r: "서울특별시", g: "강남구" }), { region: "서울특별시" })).toEqual(["서울 강남구"]);
+    expect(labels(svc({ r: "서울특별시", g: undefined, ot: "광역시도" }), { region: "서울특별시", district: "강남구" })).toEqual(["서울 전체"]);
+    expect(labels(svc({ r: undefined, g: undefined, ot: "중앙행정기관" }), { region: "서울특별시" })).toEqual(["전국 공통"]);
+    expect(labels(svc({ r: undefined, g: undefined, ot: "지방공기업" }), { region: "서울특별시" })).toEqual([]); // 지역 미상은 말하지 않는다
+    expect(labels(svc(), {})).toEqual([]); // 지역을 고르지 않으면 지역 칩 없음
+  });
+
+  it("상황: 특정 대상만 가리킬 때, 내가 고른 것만", () => {
+    const s = svc({ c: { p: ["0302", "0328"] } });
+    expect(labels(s, { persons: ["0302"] })).toEqual(["임산부"]);
+    expect(labels(s, { persons: ["0302", "0328", "0330"] })).toEqual(["임산부", "장애인"]);
+    expect(labels(s, { persons: ["0330"] })).toEqual([]);
+  });
+  it("상황: '해당사항없음'이 함께 있으면 전체 대상이라 칩을 만들지 않는다", () => {
+    expect(labels(svc({ c: { p: ["0302", "0322"] } }), { persons: ["0302"] })).toEqual([]);
+    expect(labels(svc({ c: { h: ["0403", "0410"] } }), { households: ["0403"] })).toEqual([]);
+  });
+  it("상황: 대상이 너무 많으면(5개 이상) 칩을 만들지 않는다", () => {
+    expect(labels(svc({ c: { p: ["0301", "0302", "0303", "0313", "0314"] } }), { persons: ["0302"] })).toEqual([]);
+    expect(labels(svc({ c: { p: ["0301", "0302", "0303", "0313"] } }), { persons: ["0302"] })).toEqual(["임산부"]);
+  });
+  it("가구 상황", () => {
+    expect(labels(svc({ c: { h: ["0403"] } }), { households: ["0403", "0404"] })).toEqual(["한부모·조손가정"]);
+  });
+
+  it("소득: 정책의 소득 기준을 말로 보여주고, 제한이 없으면 칩이 없다", () => {
+    expect(labels(svc({ c: { i: [1] } }), { income: 1 })).toEqual(["중위소득 50% 이하"]);
+    expect(labels(svc({ c: { i: [1, 2, 3] } }), { income: 2 })).toEqual(["중위소득 100% 이하"]);
+    expect(labels(svc({ c: { i: [2, 3] } }), { income: 3 })).toEqual(["중위소득 50~100%"]);
+    expect(labels(svc({ c: { i: [4, 5] } }), { income: 5 })).toEqual(["중위소득 100% 초과"]);
+    expect(labels(svc({ c: { i: [1, 2, 3, 4, 5] } }), { income: 2 })).toEqual([]);     // 5개 모두 = 제한 없음
+    expect(labels(svc({ c: { i: [1, 2] } }), { income: 4 })).toEqual([]);              // 내 구간이 아님
+    expect(labels(svc({ c: { i: [1, 3] } }), { income: 3 })).toEqual([]);              // 연속이 아니면 말로 풀지 않는다
+  });
+
+  it("성별: 한쪽만 대상일 때", () => {
+    expect(labels(svc({ c: { g: ["F"] } }), { sex: "F" })).toEqual(["여성 대상"]);
+    expect(labels(svc({ c: { g: ["F"] } }), { sex: "M" })).toEqual([]);
+    expect(labels(svc({ c: { g: ["M", "F"] } }), { sex: "F" })).toEqual([]);
+  });
+
+  it("나이: 범위 안일 때만, 밖이면 칩이 없다(별도 확인 배지가 담당)", () => {
+    expect(labels(svc({ c: { a: [19, 34] } }), { birthYear: 2000 })).toEqual(["만 19~34세"]);   // 25~26세
+    expect(labels(svc({ c: { a: [65, null] } }), { birthYear: 1950 })).toEqual(["만 65세 이상"]);
+    expect(labels(svc({ c: { a: [null, 39] } }), { birthYear: 2000 })).toEqual(["만 39세 이하"]);
+    expect(labels(svc({ c: { a: [19, 34] } }), { birthYear: 1960 })).toEqual([]);
+    expect(labels(svc({ c: { a: [19, 34] } }), {})).toEqual([]);
+    expect(labels(svc({ c: { a: [null, null] } }), { birthYear: 2000 })).toEqual([]);
+  });
+
+  it("여러 조건이 있으면 지역, 상황, 가구, 소득, 성별, 나이 순서", () => {
+    const s = svc({ r: "서울특별시", g: "강남구", c: { p: ["0302"], h: ["0403"], i: [1], g: ["F"], a: [19, 45] } });
+    const p = { region: "서울특별시", district: "강남구", persons: ["0302"], households: ["0403"], income: 1, sex: "F", birthYear: 1995 };
+    expect(labels(s, p)).toEqual(["서울 강남구", "임산부", "한부모·조손가정", "중위소득 50% 이하", "여성 대상", "만 19~45세"]);
+  });
+
+  it("findServices 결과에 reasons 가 들어간다", () => {
+    const [r] = findServices([svc({ c: { p: ["0302"] } })], profile({ persons: ["0302"] }));
+    expect(r.reasons.map((x) => x.label)).toEqual(["임산부"]);
+  });
+});
+
+describe.skipIf(!existsSync(REAL))("일치 이유: 실데이터에서 거짓 칩이 없다", () => {
+  const { services } = JSON.parse(readFileSync(REAL, "utf8"));
+  const p = profile({
+    region: "서울특별시", district: "강남구", persons: ["0302", "0328", "0327"], households: ["0403", "0404"],
+    income: 2, sex: "F", birthYear: 1995,
+  });
+  const results = findServices(services, p);
+
+  it("칩이 붙은 결과가 충분히 있다", () => {
+    expect(results.filter((r) => r.reasons.length > 0).length).toBeGreaterThan(100);
+  });
+
+  it("모든 칩은 정책의 실제 조건과 일치한다", () => {
+    const personLabel = (code) => ({ "0302": "임산부", "0328": "장애인", "0327": "구직자·실업자" })[code];
+    for (const r of results) {
+      const c = r.c ?? {};
+      for (const reason of r.reasons) {
+        const tag = `${r.id} ${r.n} -> ${reason.kind}:${reason.label}`;
+        if (reason.kind === "person") {
+          const code = Object.entries({ "0302": "임산부", "0328": "장애인", "0327": "구직자·실업자" }).find(([, l]) => l === reason.label)?.[0];
+          expect(c.p?.includes(code), tag).toBe(true);
+          expect(c.p.includes("0322"), `전체 대상인데 칩이 붙음 ${tag}`).toBe(false);
+          expect(c.p.length <= 4, tag).toBe(true);
+        }
+        if (reason.kind === "household") {
+          expect(c.h && !c.h.includes("0410") && c.h.length <= 4, tag).toBe(true);
+        }
+        if (reason.kind === "income") {
+          expect(c.i && c.i.length < 5 && c.i.includes(2), tag).toBe(true);
+        }
+        if (reason.kind === "sex") {
+          expect(c.g, tag).toEqual(["F"]);
+        }
+        if (reason.kind === "age") {
+          expect(r.ageCheck, tag).toBe(false);
+          expect(c.a, tag).toBeTruthy();
+        }
+        if (reason.kind === "region") {
+          expect(["전국 공통"].includes(reason.label) ? !r.r : r.r === "서울특별시", tag).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("전체 대상 정책(해당사항없음 포함)에는 상황 칩이 없다", () => {
+    const general = results.filter((r) => r.c?.p?.includes("0322"));
+    expect(general.length).toBeGreaterThan(50);
+    expect(general.every((r) => !r.reasons.some((x) => x.kind === "person"))).toBe(true);
+  });
+
+  it("임산부 전용 정책에는 임산부 칩이 붙는다(누락 방지)", () => {
+    const only = results.filter((r) => r.c?.p?.includes("0302") && !r.c.p.includes("0322") && r.c.p.length <= 4);
+    expect(only.length).toBeGreaterThan(10);
+    expect(only.every((r) => r.reasons.some((x) => x.label === "임산부"))).toBe(true);
   });
 });
