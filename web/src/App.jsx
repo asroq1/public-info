@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Subscribe from "./Subscribe.jsx";
+import { reportUrl } from "./report.js";
 import FIELD_ICONS from "./fieldIcons.json";
 import { MAX_HOUSEHOLD, bracketLimits, incomeBracket, incomePercent, manwon, manwonFloor, medianIncome, tableYear } from "./income.js";
 import {
@@ -560,6 +561,8 @@ export default function App() {
                   <div className="actions">
                     <a className="btn" href={`/p/${s.id}`}>자세히 보기</a>
                     <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
+                    <a className="report-link" href={reportUrl(s, window.location.origin)} target="_blank" rel="noopener noreferrer"
+                       title="공식 페이지와 다른 내용을 알려 주세요. 신고는 GitHub에 공개되며 개인정보는 적지 마세요.">정보가 다른가요?</a>
                   </div>
                   <OtherPlaces main={s} others={s.others} />
                 </li>

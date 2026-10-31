@@ -172,3 +172,6 @@ a { color: var(--brand); text-underline-offset: 3px; }
 .notice-card.warn { background: var(--warn-soft); color: var(--warn); }
 .notice-card.info { background: var(--brand-soft); color: var(--brand-ink); }
 .badge-muted { background: var(--surface-2); color: var(--muted); }
+
+.report { background: var(--surface-2); border-color: transparent; box-shadow: none; }
+.report p:last-child { margin-bottom: 0; }

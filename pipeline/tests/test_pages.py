@@ -183,3 +183,38 @@ def test_deadline_notice_on_policy_page():
     assert "접수 예정" in upcoming
     none = bp.render_policy({**base, "deadline": {}}, [], {}, "d", 20261031)
     assert "notice-card" not in none
+
+
+def test_report_url_prefills_policy_info_and_survives_special_characters():
+    from urllib.parse import parse_qs, urlparse
+
+    s = {**SERVICE, "서비스ID": "P1", "서비스명": "월세 &template=evil#x 지원", "상세조회URL": "https://gov.kr/a?x=1&y=2"}
+    u = urlparse(bp.report_url(s, "https://site.kr/p/P1"))
+    q = parse_qs(u.query)
+    assert u.netloc == "github.com" and u.path.endswith("/issues/new") and u.fragment == ""
+    assert q["template"] == ["data-report.yml"]            # 이름 속 &template= 이 양식 이름을 덮어쓰면 안 된다
+    assert q["policy_name"] == ["월세 &template=evil#x 지원"]
+    assert q["official_url"] == ["https://gov.kr/a?x=1&y=2"]
+    assert q["policy_id"] == ["P1"] and q["page_url"] == ["https://site.kr/p/P1"]
+    assert set(q) == {"template", "title", "policy_name", "policy_id", "page_url", "official_url"}
+
+
+def test_report_title_is_clipped():
+    s = {**SERVICE, "서비스명": "가" * 100}
+    from urllib.parse import parse_qs, urlparse
+
+    assert len(parse_qs(urlparse(bp.report_url(s, None)).query)["title"][0]) < 80
+
+
+def test_source_date_format():
+    assert bp.source_date("20260430093900") == "2026.04.30"
+    assert bp.source_date("") is None and bp.source_date(None) is None
+
+
+def test_policy_page_has_report_card_and_source_line():
+    s = {**SERVICE, "서비스ID": "P1", "수정일시": "20260430093900", "conditions": {}}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29", 20261031)
+    assert "정보가 다른가요?" in html and "정보 오류 알리기" in html
+    assert "data-report.yml" in html and "GitHub에 공개됩니다" in html
+    assert "행정안전부 보조금24 · 수정 2026.04.30" in html
+    assert "<script>alert(1)" not in html                  # 신고 링크에서도 이스케이프가 유지된다

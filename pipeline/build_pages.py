@@ -9,6 +9,7 @@ import os
 import shutil
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote, urlencode
 from pathlib import Path
 
 from app.conditions import describe_conditions
@@ -19,6 +20,8 @@ ROOT = Path(__file__).resolve().parent
 FULL_PATH = ROOT / "build" / "full.json"
 PUBLIC = ROOT.parent / "web" / "public"
 SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
+# 오류 신고를 받을 GitHub 저장소(Actions 에서는 GITHUB_REPOSITORY 가 자동으로 들어온다)
+REPORT_REPO = os.getenv("GITHUB_REPOSITORY", "asroq1/public-info")
 
 FIELD_ICONS = json.loads((ROOT.parent / "web" / "src" / "fieldIcons.json").read_text(encoding="utf-8"))
 
@@ -103,6 +106,26 @@ def related_for(s: dict, by_org: dict, by_field: dict, pos: dict) -> list[dict]:
     return out
 
 
+def report_url(s: dict, page_url: str | None) -> str:
+    """정책 정보 오류 신고용 GitHub 이슈 양식 주소. 정책 이름·번호·페이지·공식 주소를 미리 채운다."""
+    name = " ".join((s.get("서비스명") or "").split())
+    query = {
+        "template": "data-report.yml",
+        "title": f"[정보 오류] {clip(name, 60)}",
+        "policy_name": name,
+        "policy_id": s.get("서비스ID") or "",
+        "page_url": page_url or "",
+        "official_url": s.get("상세조회URL") or "",
+    }
+    return f"https://github.com/{REPORT_REPO}/issues/new?" + urlencode(query, quote_via=quote)
+
+
+def source_date(stamp: str | None) -> str | None:
+    """공공데이터의 수정일시 '20260430093900' -> '2026.04.30'"""
+    day = to_date(stamp)
+    return day.replace("-", ".") if day else None
+
+
 def kst_today_int() -> int:
     return int((datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y%m%d"))
 
@@ -126,6 +149,8 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str, 
         art=field_art(s.get("서비스분야")),
         site_url=SITE_URL,
         og_image=f"/og/{field_art(s.get('서비스분야'))['slug']}.png",
+        report_url=report_url(s, url),
+        source_date=source_date(s.get('수정일시')),
         detail=s.get("detail") or {},
         deadline=deadline_status(s.get("deadline"), today if today is not None else kst_today_int()),
         updated=updated,

@@ -35,6 +35,10 @@ cd web && npm test && npm run build                   # 웹 테스트·빌드 (�
 - **매년 갱신**: `web/src/income.js` 의 기준 중위소득 표(보건복지부, 매년 8월 1일까지 공표).
 - 분야 아이콘·색·공유 이미지 파일명은 `web/src/fieldIcons.json` 한 곳에서 정의. 바꾸면 `scripts/make_og.py` 로 공유 이미지를 다시 만든다.
 
+## 오류 신고
+정책 페이지와 카드의 "정보가 다른가요?" 는 GitHub 이슈 양식(`.github/ISSUE_TEMPLATE/data-report.yml`, 라벨 `data-report`)을 정책 정보로 미리 채워 연다.
+신고는 공개되므로 양식에 개인정보 금지 안내가 있다. 신고가 들어오면 `gh issue list -R asroq1/public-info -l data-report` 로 확인하고, 원인이 해석 규칙이면 실데이터 테스트와 함께 고친다.
+
 ## 개발 도구 (`.mcp.json`, 버전 고정)
 - **context7**: React·Vite·Vitest·FastAPI·Jinja2·Cloudflare Pages Functions 등 라이브러리 API 를 쓸 때 최신 문서를 확인한다. 기억에 의존해 API 를 추측하지 않는다.
 - **playwright**: 화면을 직접 열어 확인한다. 접근은 `localhost` 와 배포 사이트로 제한돼 있고(`--allowed-origins`), 프로필은 메모리에만 둔다. 다른 사이트가 필요하면 `.mcp.json` 의 허용 주소를 사용자 확인 후 늘린다.
