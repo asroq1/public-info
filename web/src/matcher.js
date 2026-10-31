@@ -28,11 +28,11 @@ export const HOUSEHOLD_TRAITS = {
 };
 
 export const INCOME_LABELS = {
-  1: "중위소득 50% 이하", 2: "50~75%", 3: "75~100%", 4: "100~200%", 5: "200% 초과",
+  1: "중위소득 50% 이하", 2: "중위소득 50~75%", 3: "중위소득 75~100%", 4: "중위소득 100~200%", 5: "중위소득 200% 초과",
 };
 
 export const emptyProfile = () => ({
-  age: null, sex: null, income: null, region: "",
+  age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "",
   persons: [], households: [], business: false, field: "", q: "",
 });
 
@@ -72,12 +72,26 @@ export function matchService(service, profile) {
   return true;
 }
 
-// 입력한 나이가 공공데이터의 나이 코드 범위 밖인지
-export function ageOutOfRange(service, profile) {
+/**
+ * 만 나이 후보. 출생연도만 알면 올해 생일이 지났는지 몰라서 (올해-출생연도-1, 올해-출생연도) 두 경우가 된다.
+ * 예전에 저장된 age 값만 있으면 그 값 하나를 쓴다.
+ */
+export function candidateAges(profile, year = new Date().getFullYear()) {
+  const by = profile.birthYear;
+  if (Number.isInteger(by) && by >= 1900 && by <= year) {
+    const older = year - by;
+    return older === 0 ? [0] : [older - 1, older];
+  }
+  return profile.age != null ? [profile.age] : [];
+}
+
+// 입력한 나이가 공공데이터의 나이 코드 범위 밖인지. 후보 나이가 하나라도 범위 안이면 밖이 아니다.
+export function ageOutOfRange(service, profile, year) {
   const range = service.c?.a;
-  if (profile.age == null || !range) return false;
+  const ages = candidateAges(profile, year);
+  if (!ages.length || !range) return false;
   const [lo, hi] = range;
-  return (lo != null && profile.age < lo) || (hi != null && profile.age > hi);
+  return ages.every((age) => (lo != null && age < lo) || (hi != null && age > hi));
 }
 
 export function findServices(services, profile) {

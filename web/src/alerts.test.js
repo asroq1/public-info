@@ -17,18 +17,23 @@ describe("입력 검증", () => {
   });
   it("프로필은 허용된 값만 남긴다", () => {
     const p = normalizeProfile({
-      age: "30", sex: "X", income: 9, region: "서울", persons: ["0302", "evil", "0302"],
+      age: "30", birthYear: 1995, household: 4, monthlyIncome: "300", sex: "X", income: 9, region: "서울", persons: ["0302", "evil", "0302"],
       households: ["0403", 5], business: true, field: "x", q: "y", extra: "z",
     });
     expect(p).toEqual({
-      age: 30, sex: null, income: null, region: "서울", persons: ["0302"],
+      sex: null, income: null, region: "서울", persons: ["0302"],
       households: ["0403"], business: false, field: "", q: "",
     });
+  });
+  it("나이·출생연도·가구원 수·월 소득 원본은 저장하지 않는다", () => {
+    const p = normalizeProfile({ age: 30, birthYear: 1995, household: 4, monthlyIncome: "300", income: 2 });
+    for (const key of ["age", "birthYear", "household", "monthlyIncome"]) expect(p).not.toHaveProperty(key);
+    expect(p.income).toBe(2); // 구간만 저장
   });
   it("잘못된 입력에도 안전", () => {
     expect(normalizeProfile(null).region).toBe("");
     expect(normalizeProfile({ age: "", region: "없는지역", persons: "0302" })).toMatchObject({
-      age: null, region: "", persons: [],
+      region: "", persons: [],
     });
   });
 });

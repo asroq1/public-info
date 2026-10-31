@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Subscribe from "./Subscribe.jsx";
 import FIELD_ICONS from "./fieldIcons.json";
+import { MAX_HOUSEHOLD, bracketLimits, incomeBracket, incomePercent, manwon, manwonFloor, medianIncome, tableYear } from "./income.js";
 import {
   HOUSEHOLD_TRAITS,
   INCOME_LABELS,
   PERSON_TRAITS,
   REGION_NAMES,
+  candidateAges,
   emptyProfile,
   findServices,
 } from "./matcher.js";
@@ -21,7 +23,12 @@ const SEX_OPTIONS = [
 function loadSavedProfile() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved ? { ...emptyProfile(), ...saved, q: "" } : null;
+    if (!saved) return null;
+    const p = { ...emptyProfile(), ...saved, q: "" };
+    // 예전 버전은 나이를 저장했다. 출생연도로 바꿔 이어서 쓴다.
+    if (p.birthYear == null && Number.isInteger(p.age)) p.birthYear = new Date().getFullYear() - p.age;
+    p.age = null;
+    return p;
   } catch {
     return null;
   }
@@ -65,7 +72,7 @@ function Chips({ options, selected, onToggle }) {
 
 function summarize(p) {
   const parts = [];
-  if (p.age != null) parts.push(`${p.age}세`);
+  if (p.birthYear) parts.push(`${p.birthYear}년생`);
   if (p.sex) parts.push(p.sex === "M" ? "남성" : "여성");
   if (p.region) parts.push(p.region);
   if (p.income) parts.push(INCOME_LABELS[p.income]);
@@ -83,6 +90,9 @@ export default function App() {
   const [recent, setRecent] = useState([]);
   // 좁은 화면에서는 저장된 조건이 있으면 접어서 결과를 먼저 보여준다
   const [formOpen, setFormOpen] = useState(!saved);
+  const [birthText, setBirthText] = useState(profile.birthYear ? String(profile.birthYear) : "");
+  const [incomeText, setIncomeText] = useState(profile.monthlyIncome == null ? "" : String(profile.monthlyIncome));
+  const year = new Date().getFullYear();
 
   useEffect(() => {
     fetch("/data/index.json")
@@ -134,7 +144,55 @@ export default function App() {
       [key]: p[key].includes(code) ? p[key].filter((c) => c !== code) : [...p[key], code],
     }));
   const num = (v) => (v === "" ? null : Number(v));
-  const reset = () => setProfile(emptyProfile());
+  const reset = () => {
+    setProfile(emptyProfile());
+    setBirthText("");
+    setIncomeText("");
+  };
+  const onBirth = (e) => {
+    const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+    setBirthText(v);
+    const n = Number(v);
+    set({ birthYear: v.length === 4 && n >= 1900 && n <= year ? n : null });
+  };
+  // 가구원 수와 월 소득이 모두 있으면 소득 구간을 자동으로 고른다. 모자라면 지금 선택을 그대로 둔다.
+  const onHousehold = (e) => {
+    const h = e.target.value === "" ? null : Number(e.target.value);
+    setProfile((p) => ({ ...p, household: h, income: incomeBracket(h, p.monthlyIncome, year) ?? p.income }));
+  };
+  const onMonthly = (e) => {
+    const v = e.target.value.replace(/[^\d.]/g, "").slice(0, 7);
+    setIncomeText(v);
+    setProfile((p) => ({ ...p, monthlyIncome: v, income: incomeBracket(p.household, v, year) ?? p.income }));
+  };
+
+  const ages = candidateAges(profile, year);
+  const birthHint = ages.length === 2
+    ? `생일이 지났다면 만 ${ages[1]}세, 아직이면 만 ${ages[0]}세예요. 두 경우 모두 고려해서 찾아요.`
+    : ages.length === 1
+      ? `만 ${ages[0]}세로 계산해요.`
+      : birthText.length > 0
+        ? "출생연도 4자리를 입력해 주세요. 예: 1995"
+        : "생일을 몰라도 돼요. 출생연도만 입력하면 만 나이를 계산해요.";
+
+  const limits = bracketLimits(profile.household, year);
+  const pct = incomePercent(profile.household, profile.monthlyIncome, year);
+  const median = medianIncome(profile.household, year);
+  const householdLabel = (n) => (n >= MAX_HOUSEHOLD ? `${MAX_HOUSEHOLD}인 이상` : `${n}인`);
+  const incomeOptions = Object.entries(INCOME_LABELS).map(([v, label]) => {
+    const i = Number(v);
+    let range = "";
+    if (limits) {
+      range = i === 1 ? `월 ${manwonFloor(limits[0])} 이하` : i === 5 ? `월 ${manwonFloor(limits[3])} 초과` : `월 ${manwonFloor(limits[i - 2])} 초과~${manwonFloor(limits[i - 1])} 이하`;
+    }
+    return { v, label: range ? `${label} (${range})` : label };
+  });
+  const incomeHint = pct != null
+    ? `${householdLabel(profile.household)} 가구 월 ${Number(profile.monthlyIncome).toLocaleString("ko-KR")}만원은 ${tableYear(year)}년 기준 중위소득(월 ${manwon(median)})의 약 ${Math.round(pct)}%예요.`
+    : profile.household
+      ? "월 소득(만원)을 입력하면 구간을 자동으로 골라 줘요."
+      : "가구원 수와 월 소득을 입력하면 구간을 자동으로 골라 줘요.";
+
   const loading = !data && !error;
 
   return (
@@ -184,11 +242,11 @@ export default function App() {
             <div className="sidebar-body">
               <div className="fields">
                 <label className="field">
-                  <span className="label">나이</span>
+                  <span className="label">출생연도</span>
                   <span className="input-suffix">
-                    <input className="input" type="number" inputMode="numeric" min="0" max="120" placeholder="예: 30"
-                      value={profile.age ?? ""} onChange={(e) => set({ age: num(e.target.value) })} />
-                    <span>세</span>
+                    <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="예: 1995"
+                      value={birthText} onChange={onBirth} aria-describedby="birth-hint" />
+                    <span>년생</span>
                   </span>
                 </label>
                 <label className="field">
@@ -200,6 +258,7 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+                <p className="hint full" id="birth-hint" aria-live="polite">{birthHint}</p>
                 <div className="field full" role="radiogroup" aria-label="성별">
                   <span className="label">성별</span>
                   <div className="seg">
@@ -210,15 +269,37 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <label className="field full">
-                  <span className="label">소득 수준 (기준 중위소득)</span>
-                  <select className="select" value={profile.income ?? ""} onChange={(e) => set({ income: num(e.target.value) })}>
-                    <option value="">모름 / 선택 안 함</option>
-                    {Object.entries(INCOME_LABELS).map(([v, l]) => (
-                      <option key={v} value={v}>{l}</option>
+                <div className="field full">
+                  <span className="label">가구 소득</span>
+                  <div className="income-row">
+                    <select className="select" aria-label="가구원 수" value={profile.household ?? ""} onChange={onHousehold}>
+                      <option value="">가구원 수</option>
+                      {Array.from({ length: MAX_HOUSEHOLD }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n}>{householdLabel(n)} 가구</option>
+                      ))}
+                    </select>
+                    <span className="input-suffix">
+                      <input className="input" type="text" inputMode="numeric" placeholder="월 소득" aria-label="월 가구 소득(만원)"
+                        value={incomeText} onChange={onMonthly} />
+                      <span>만원</span>
+                    </span>
+                  </div>
+                  <select className="select" aria-label="소득 구간" value={profile.income ?? ""} onChange={(e) => set({ income: num(e.target.value) })}>
+                    <option value="">소득 구간 직접 선택 (모르면 비워 두세요)</option>
+                    {incomeOptions.map((o) => (
+                      <option key={o.v} value={o.v}>{o.label}</option>
                     ))}
                   </select>
-                </label>
+                  <p className="hint" aria-live="polite">{incomeHint}</p>
+                  <details className="explain">
+                    <summary>기준 중위소득이 뭔가요?</summary>
+                    <div>
+                      <p>전체 가구를 소득 순으로 세웠을 때 한가운데 가구의 월 소득이에요. 복지 지원은 "중위소득의 몇 % 이하"처럼 이 금액을 기준으로 대상을 정해요.</p>
+                      <p>{tableYear(year)}년 4인 가구는 월 {manwon(medianIncome(4, year))}이라 "50% 이하"는 월 {manwonFloor(bracketLimits(4, year)[0])} 이하예요.</p>
+                      <p>소득은 가구원 모두의 세전 월 소득(근로·사업소득 등)을 합친 대략의 금액이면 돼요. 실제 선정은 재산까지 소득으로 환산한 소득인정액 등으로 정해서, 여기 결과는 참고용이에요.</p>
+                    </div>
+                  </details>
+                </div>
               </div>
 
               <div className="group">
@@ -260,7 +341,7 @@ export default function App() {
             <div className="toolbar">
               <label className="search">
                 <Icon name="search" />
-                <input className="input" aria-label="지원 검색" value={profile.q} onChange={(e) => set({ q: e.target.value })} placeholder="월세, 출산, 대출 등으로 검색" />
+                <input className="input" aria-label="지원 검색" value={profile.q} onChange={(e) => set({ q: e.target.value, field: "" })} placeholder="월세, 출산, 대출 등으로 검색" />
               </label>
               <select className="select" aria-label="분야" value={profile.field} onChange={(e) => set({ field: e.target.value })}>
                 <option value="">전체 분야</option>

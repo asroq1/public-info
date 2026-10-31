@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { emptyProfile, findServices, matchService } from "./matcher.js";
+import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchService } from "./matcher.js";
 
 const svc = (over = {}) => ({
   id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", f: "생활안정",
@@ -28,6 +28,26 @@ describe("연령", () => {
     const inRange = svc({ id: "a", v: 1, c: { a: [18, 39] } });
     const out = svc({ id: "b", v: 99, c: { a: [60, null] } });
     expect(findServices([out, inRange], profile({ age: 30 })).map((r) => r.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("출생연도로 나이 계산", () => {
+  it("생일 전후 두 경우를 후보로 둔다", () => {
+    expect(candidateAges({ birthYear: 1995 }, 2026)).toEqual([30, 31]);
+    expect(candidateAges({ birthYear: 2026 }, 2026)).toEqual([0]);
+    expect(candidateAges({ birthYear: 2027 }, 2026)).toEqual([]); // 미래 연도는 무시
+    expect(candidateAges({ birthYear: 1850 }, 2026)).toEqual([]);
+    expect(candidateAges({ age: 40 }, 2026)).toEqual([40]); // 예전 저장값 호환
+    expect(candidateAges({}, 2026)).toEqual([]);
+  });
+  it("후보 중 하나라도 범위 안이면 확인 표시를 하지 않는다", () => {
+    const s = svc({ c: { a: [31, 39] } });
+    expect(ageOutOfRange(s, { birthYear: 1995 }, 2026)).toBe(false); // 30 또는 31 -> 31 은 범위 안
+    expect(ageOutOfRange(s, { birthYear: 1996 }, 2026)).toBe(true);  // 29 또는 30 -> 둘 다 밖
+    expect(ageOutOfRange(svc({ c: { a: [65, null] } }), { birthYear: 1961 }, 2026)).toBe(false); // 64 또는 65
+  });
+  it("출생연도가 없으면 표시하지 않는다", () => {
+    expect(ageOutOfRange(svc({ c: { a: [65, null] } }), {}, 2026)).toBe(false);
   });
 });
 

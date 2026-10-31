@@ -50,3 +50,8 @@ SITE_URL=https://내도메인 .venv/bin/python build_pages.py   # web/public/p, 
 
 로컬 시험: `npx wrangler pages dev web/dist --d1=DB --binding FROM_EMAIL=x@x.kr --binding ALLOW_DRY_RUN=1 --binding DIGEST_TOKEN=t`
 (`ALLOW_DRY_RUN` 은 메일을 보내지 않고 로그로만 남긴다. 운영에는 설정하지 않는다.)
+
+## 매년 갱신할 것: 기준 중위소득 표
+`web/src/income.js` 의 `MEDIAN_INCOME` 은 보건복지부가 매년 8월 1일까지 공표하는 기준 중위소득(월, 원)이다.
+다음 해 값이 공표되면 연도 한 줄을 추가한다(출처: https://www.mohw.go.kr/menu.es?mid=a10708010900).
+표에 없는 연도는 가장 최근 연도 값을 쓰므로, 갱신을 놓치면 소득 구간이 낮게 계산된다.

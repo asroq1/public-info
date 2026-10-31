@@ -113,3 +113,13 @@
 .result-top > div { min-width: 0; flex: 1; }
 .result-top h3 { margin: 8px 0 0; }
 .result .kv { margin-top: 14px; }
+
+/* 입력 도움말 */
+.hint { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.hint.full { grid-column: 1 / -1; margin-top: -4px; }
+.income-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.explain { margin-top: 2px; }
+.explain summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--brand); padding: 4px 0; }
+.explain div { margin-top: 6px; padding: 12px; background: var(--surface-2); border-radius: 12px; }
+.explain p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--fg-2); }
+.explain p + p { margin-top: 8px; }
