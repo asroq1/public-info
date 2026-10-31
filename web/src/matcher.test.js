@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchService } from "./matcher.js";
+import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
 
 const svc = (over = {}) => ({
-  id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", f: "생활안정",
+  id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", r: "서울특별시", g: "강남구", f: "생활안정",
   s: "", t: "", v: 0, c: {}, ...over,
 });
 const profile = (over = {}) => ({ ...emptyProfile(), ...over });
@@ -95,15 +95,52 @@ describe("사업자 전용", () => {
 });
 
 describe("지역", () => {
-  it("다른 시도 지자체 서비스는 제외, 중앙부처는 포함", () => {
-    const busan = svc({ o: "부산광역시", ot: "광역시도" });
-    const central = svc({ o: "보건복지부", ot: "중앙행정기관" });
-    expect(matchService(busan, profile({ region: "서울" }))).toBe(false);
-    expect(matchService(central, profile({ region: "서울" }))).toBe(true);
+  const seoul = "서울특별시", busan = "부산광역시";
+  const gangnam = svc({ r: seoul, g: "강남구" });
+  const jung = (r) => svc({ id: `jung-${r}`, o: `${r} 중구`, r, g: "중구" });
+  const city = svc({ id: "city", o: seoul, ot: "광역시도", r: seoul, g: undefined });
+  const central = svc({ id: "central", o: "보건복지부", ot: "중앙행정기관", r: undefined, g: undefined });
+  const unknown = svc({ id: "unknown", o: "광주문화재단", ot: "지방출자_출연기관", r: undefined, g: undefined });
+
+  it("다른 시·도 정책은 제외하고 중앙부처는 포함", () => {
+    expect(matchService(svc({ r: busan, g: undefined, ot: "광역시도" }), profile({ region: seoul }))).toBe(false);
+    expect(matchService(central, profile({ region: seoul }))).toBe(true);
   });
-  it("충남은 충청남도로 매칭", () => {
-    expect(matchService(svc({ o: "충청남도 서천군" }), profile({ region: "충남" }))).toBe(true);
-    expect(matchService(svc({ o: "충청북도 청주시" }), profile({ region: "충남" }))).toBe(false);
+  it("지역을 고르지 않으면 전부 포함", () => {
+    for (const s of [gangnam, central, unknown]) expect(matchService(s, profile())).toBe(true);
+  });
+  it("시·도만 고르면 그 시·도의 모든 시·군·구 정책 포함", () => {
+    expect(matchService(gangnam, profile({ region: seoul }))).toBe(true);
+    expect(matchService(svc({ r: seoul, g: "서초구" }), profile({ region: seoul }))).toBe(true);
+  });
+  it("시·군·구를 고르면 같은 시·도의 다른 구 정책은 제외, 시·도 단위와 전국 정책은 포함", () => {
+    const p = profile({ region: seoul, district: "강남구" });
+    expect(matchService(gangnam, p)).toBe(true);
+    expect(matchService(svc({ r: seoul, g: "서초구" }), p)).toBe(false);
+    expect(matchService(city, p)).toBe(true);
+    expect(matchService(central, p)).toBe(true);
+  });
+  it("같은 이름의 시·군·구는 시·도까지 같아야 일치(서울 중구 ≠ 부산 중구)", () => {
+    const p = profile({ region: seoul, district: "중구" });
+    expect(matchService(jung(seoul), p)).toBe(true);
+    expect(matchService(jung(busan), p)).toBe(false);
+  });
+  it("지역을 알 수 없는 기관 정책은 지역을 고르면 제외", () => {
+    expect(matchService(unknown, profile({ region: seoul }))).toBe(false);
+  });
+  it("예전에 저장된 약칭은 새 이름으로 바뀐다(광주·전남은 통합 이름으로)", () => {
+    expect(migrateRegion("서울")).toBe("서울특별시");
+    expect(migrateRegion("충남")).toBe("충청남도");
+    expect(migrateRegion("광주")).toBe("전남광주통합특별시");
+    expect(migrateRegion("전남")).toBe("전남광주통합특별시");
+    expect(migrateRegion("서울특별시")).toBe("서울특별시");
+    expect(migrateRegion(undefined)).toBe("");
+  });
+  it("표시 이름과 순서", () => {
+    expect(regionLabel("전남광주통합특별시")).toBe("전남·광주");
+    expect(regionLabel("새로생긴특별시")).toBe("새로생긴특별시");
+    const names = orderRegions([{ name: "제주특별자치도" }, { name: "새로생긴특별시" }, { name: "서울특별시" }]).map((r) => r.name);
+    expect(names).toEqual(["서울특별시", "제주특별자치도", "새로생긴특별시"]);
   });
 });
 
@@ -117,13 +154,39 @@ describe("조건 정보 없음", () => {
 const REAL = new URL("../public/data/index.json", import.meta.url);
 describe.skipIf(!existsSync(REAL))("실데이터 불변식", () => {
   const { services } = JSON.parse(readFileSync(REAL, "utf8"));
-  const base = profile({ age: 30, sex: "M", income: 2, region: "서울" });
+  const base = profile({ age: 30, sex: "M", income: 2, region: "서울특별시" });
 
-  it("모든 결과는 서울 또는 전국 서비스", () => {
-    for (const r of findServices(services, base)) {
-      const ok = ["중앙행정기관", "공공기관"].includes(r.ot) || r.o.includes("서울특별시");
+  it("모든 결과는 서울 정책이거나 지역 없는 전국 정책이고, 결과가 비어 있지 않다", () => {
+    const results = findServices(services, base);
+    expect(results.length).toBeGreaterThan(100);
+    for (const r of results) {
+      const ok = r.r === "서울특별시" || (!r.r && ["중앙행정기관", "공공기관"].includes(r.ot));
       expect(ok, `${r.id} ${r.o}`).toBe(true);
     }
+    expect(results.some((r) => r.ot === "시군구" && r.r === "서울특별시")).toBe(true);
+  });
+  it("시·군·구를 고르면 그 구 정책만 남고 다른 구는 없다", () => {
+    const results = findServices(services, { ...base, district: "강남구" });
+    expect(results.some((r) => r.g === "강남구")).toBe(true);
+    expect(results.filter((r) => r.g && r.g !== "강남구")).toEqual([]);
+    const all = findServices(services, base);
+    expect(results.length).toBeLessThan(all.length);
+  });
+  it("전남·광주 사용자도 시·군·구 정책을 본다(통합 이전 이름으로 찾던 오류 방지)", () => {
+    const region = "전남광주통합특별시";
+    const results = findServices(services, profile({ region }));
+    // 지역만 빼고 같은 조건에서 이 지역 시·군·구 정책이 몇 건인지(= 기대값)와 정확히 같아야 한다
+    const expected = services.filter((s) => s.ot === "시군구" && s.r === region && matchService(s, profile()));
+    expect(expected.length).toBeGreaterThan(100);
+    expect(results.filter((r) => r.ot === "시군구").length).toBe(expected.length);
+    expect(results.every((r) => r.r === region || !r.r)).toBe(true);
+  });
+  it("메타의 지역 목록이 정책의 지역과 일치", () => {
+    const { meta } = JSON.parse(readFileSync(REAL, "utf8"));
+    const names = new Set(meta.regions.map((r) => r.name));
+    for (const s of services) if (s.r) expect(names.has(s.r), s.r).toBe(true);
+    const sg = meta.regions.find((r) => r.name === "서울특별시");
+    expect(sg.districts).toContain("강남구");
   });
   it("나이 코드 범위 밖인 결과는 모두 확인 표시가 붙는다", () => {
     for (const r of findServices(services, base)) {

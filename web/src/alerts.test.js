@@ -6,7 +6,7 @@ import { escapeHtml, randomToken, safeEqual } from "../../functions/_lib/util.js
 import { normalizeEmail, normalizeProfile } from "../../functions/_lib/validate.js";
 import { emptyProfile } from "./matcher.js";
 
-const item = (over = {}) => ({ id: "1", n: "청년 월세", o: "서울특별시", ot: "광역시도", f: "주거", u: "u", d: "", c: {}, ...over });
+const item = (over = {}) => ({ id: "1", n: "청년 월세", o: "서울특별시", ot: "광역시도", r: "서울특별시", f: "주거", u: "u", d: "", c: {}, ...over });
 
 describe("입력 검증", () => {
   it("이메일", () => {
@@ -17,11 +17,11 @@ describe("입력 검증", () => {
   });
   it("프로필은 허용된 값만 남긴다", () => {
     const p = normalizeProfile({
-      age: "30", birthYear: 1995, household: 4, monthlyIncome: "300", sex: "X", income: 9, region: "서울", persons: ["0302", "evil", "0302"],
+      age: "30", birthYear: 1995, household: 4, monthlyIncome: "300", sex: "X", income: 9, region: "서울", district: "강남구", persons: ["0302", "evil", "0302"],
       households: ["0403", 5], business: true, field: "x", q: "y", extra: "z",
     });
     expect(p).toEqual({
-      sex: null, income: null, region: "서울", persons: ["0302"],
+      sex: null, income: null, region: "서울특별시", district: "강남구", persons: ["0302"],
       households: ["0403"], business: false, field: "", q: "",
     });
   });
@@ -32,19 +32,20 @@ describe("입력 검증", () => {
   });
   it("잘못된 입력에도 안전", () => {
     expect(normalizeProfile(null).region).toBe("");
-    expect(normalizeProfile({ age: "", region: "없는지역", persons: "0302" })).toMatchObject({
-      region: "", persons: [],
+    expect(normalizeProfile({ age: "", region: "<script>", district: "강남구", persons: "0302" })).toMatchObject({
+      region: "", district: "", persons: [],
     });
+    expect(normalizeProfile({ region: "서울특별시", district: "<b>x</b>" }).district).toBe("");
   });
 });
 
 describe("알림 매칭", () => {
   const todayChanges = {
-    new: [item({ id: "n1" }), item({ id: "n2", o: "부산광역시", c: { p: ["0302"] } })],
-    updated: [item({ id: "u1", n: "임산부 지원", c: { p: ["0302"] }, ot: "중앙행정기관", o: "보건복지부" })],
+    new: [item({ id: "n1" }), item({ id: "n2", o: "부산광역시", r: "부산광역시", c: { p: ["0302"] } })],
+    updated: [item({ id: "u1", n: "임산부 지원", c: { p: ["0302"] }, ot: "중앙행정기관", o: "보건복지부", r: undefined })],
   };
   it("프로필에 맞는 것만 고른다", () => {
-    const m = matchDigest({ ...emptyProfile(), region: "서울" }, todayChanges);
+    const m = matchDigest({ ...emptyProfile(), region: "서울특별시" }, todayChanges);
     expect(m.added.map((s) => s.id)).toEqual(["n1"]);
     expect(m.updated).toEqual([]);
   });
@@ -53,7 +54,7 @@ describe("알림 매칭", () => {
     expect(m.updated.map((s) => s.id)).toEqual(["u1"]);
   });
   it("맞는 게 없으면 null", () => {
-    expect(matchDigest({ ...emptyProfile(), region: "제주" }, { new: [item()], updated: [] })).toBeNull();
+    expect(matchDigest({ ...emptyProfile(), region: "제주특별자치도" }, { new: [item()], updated: [] })).toBeNull();
   });
 });
 
@@ -63,12 +64,12 @@ describe("알림에서 마감된 지원 제외", () => {
       new: [item({ id: "n1", dl: { b: 20260101, e: 20260131 } }), item({ id: "n2", dl: { e: 20261231 } })],
       updated: [item({ id: "u1", dl: { e: 20261030 } })],
     };
-    const m = matchDigest({ ...emptyProfile(), region: "서울" }, changes, 20261031);
+    const m = matchDigest({ ...emptyProfile(), region: "서울특별시" }, changes, 20261031);
     expect(m.added.map((s) => s.id)).toEqual(["n2"]);
     expect(m.updated).toEqual([]);
   });
   it("모두 마감이면 null", () => {
-    expect(matchDigest({ ...emptyProfile(), region: "서울" }, { new: [item({ dl: { e: 20200101 } })], updated: [] }, 20261031)).toBeNull();
+    expect(matchDigest({ ...emptyProfile(), region: "서울특별시" }, { new: [item({ dl: { e: 20200101 } })], updated: [] }, 20261031)).toBeNull();
   });
 });
 

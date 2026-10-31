@@ -17,6 +17,7 @@ from app.conditions import parse_conditions
 from app.deadline import parse_deadline
 from app.detail import build_detail
 from app.gov24 import fetch_all
+from app.regions import RegionResolver
 
 ROOT = Path(__file__).resolve().parent
 INDEX_PATH = ROOT.parent / "web" / "public" / "data" / "index.json"
@@ -37,18 +38,20 @@ def clip(text: str | None, limit: int) -> str:
     return text if len(text) <= limit else text[:limit].rstrip() + "…"
 
 
-def build() -> tuple[list[dict], list[dict]]:
+def build() -> tuple[list[dict], list[dict], list[dict]]:
     services = fetch_all("serviceList")
     conditions = {r["서비스ID"]: r for r in fetch_all("supportConditions")}
     details = {r["서비스ID"]: r for r in fetch_all("serviceDetail")}
     if services and len(details) < len(services) * MIN_DETAIL_RATIO:
         raise SystemExit(f"상세 정보를 충분히 받지 못해 중단합니다: {len(details)}/{len(services)}")
 
+    resolver = RegionResolver(services)
     index, full = [], []
     for s in services:
         sid = s.get("서비스ID")
         cond = parse_conditions(conditions.get(sid, {}))
         dl = parse_deadline(s.get("신청기한"), s.get("신청기한유형"))
+        sido, district = resolver.resolve(s.get("소관기관명"), s.get("소관기관유형"))
         index.append({
             "id": sid,
             "n": s.get("서비스명"),
@@ -62,9 +65,11 @@ def build() -> tuple[list[dict], list[dict]]:
             "v": int(s.get("조회수") or 0),
             "c": cond,
             **({"dl": dl} if dl else {}),
+            **({"r": sido} if sido else {}),
+            **({"g": district} if district else {}),
         })
         full.append({**s, "conditions": cond, "detail": build_detail(details.get(sid)), "deadline": dl})
-    return index, full
+    return index, full, resolver.region_list()
 
 
 def validate(index: list[dict], prev_count: int | None) -> None:
@@ -128,7 +133,7 @@ def detect_changes(
 def today_items(index: list[dict], entry: dict) -> dict:
     """알림 발송용으로 오늘의 신규·변경 서비스의 매칭에 필요한 필드만 담는다."""
     by_id = {r["id"]: r for r in index}
-    keep = ("id", "n", "o", "ot", "f", "u", "d", "c", "dl")
+    keep = ("id", "n", "o", "ot", "f", "u", "d", "c", "dl", "r", "g")
 
     def pick(ids: list[str]) -> list[dict]:
         return [{k: by_id[i][k] for k in keep if k in by_id[i]} for i in ids if i in by_id]
@@ -137,12 +142,12 @@ def today_items(index: list[dict], entry: dict) -> dict:
 
 
 def main() -> None:
-    index, full = build()
+    index, full, regions = build()
     prev_hashes = load_previous("hashes.json", HASHES_PATH)
     validate(index, len(prev_hashes) if prev_hashes else None)
     today = datetime.now(KST).strftime("%Y-%m-%d")
     hashes, changes = detect_changes(full, index, prev_hashes, today)
-    meta = {"updated": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "count": len(index)}
+    meta = {"updated": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "count": len(index), "regions": regions}
 
     INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
     FULL_PATH.parent.mkdir(parents=True, exist_ok=True)

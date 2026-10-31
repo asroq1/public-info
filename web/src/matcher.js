@@ -1,13 +1,29 @@
 // 프로필과 서비스의 지원조건(c)을 비교해 "대상이 될 수 있는" 서비스를 추린다.
 // 자격 판정이 아니라 후보 추림이다. 조건 정보가 없는 서비스는 통과시키되 uncertain 으로 표시한다.
 
-export const REGION_NAMES = {
-  서울: "서울특별시", 부산: "부산광역시", 대구: "대구광역시", 인천: "인천광역시",
-  광주: "광주광역시", 대전: "대전광역시", 울산: "울산광역시", 세종: "세종특별자치시",
-  경기: "경기도", 강원: "강원특별자치도", 충북: "충청북도", 충남: "충청남도",
-  전북: "전북특별자치도", 전남: "전라남도", 경북: "경상북도", 경남: "경상남도",
-  제주: "제주특별자치도",
+// 화면에 보여줄 짧은 이름과 표시 순서. 지역 목록 자체는 데이터(index.json 의 meta.regions)에서 오고,
+// 여기에 없는 새 시·도는 정식 이름 그대로 목록 끝에 붙는다.
+export const REGION_SHORT = {
+  서울특별시: "서울", 부산광역시: "부산", 대구광역시: "대구", 인천광역시: "인천", 전남광주통합특별시: "전남·광주",
+  대전광역시: "대전", 울산광역시: "울산", 세종특별자치시: "세종", 경기도: "경기", 강원특별자치도: "강원",
+  충청북도: "충북", 충청남도: "충남", 전북특별자치도: "전북", 경상북도: "경북", 경상남도: "경남", 제주특별자치도: "제주",
 };
+export const regionLabel = (full) => REGION_SHORT[full] ?? full;
+
+export function orderRegions(list) {
+  const order = Object.keys(REGION_SHORT);
+  const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length);
+  return [...list].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "ko"));
+}
+
+// 예전 버전이 저장한 짧은 지역 이름 -> 정식 이름. 광주광역시와 전라남도는 전남광주통합특별시로 합쳐졌다.
+const LEGACY_REGIONS = {
+  서울: "서울특별시", 부산: "부산광역시", 대구: "대구광역시", 인천: "인천광역시", 광주: "전남광주통합특별시",
+  대전: "대전광역시", 울산: "울산광역시", 세종: "세종특별자치시", 경기: "경기도", 강원: "강원특별자치도",
+  충북: "충청북도", 충남: "충청남도", 전북: "전북특별자치도", 전남: "전남광주통합특별시", 경북: "경상북도",
+  경남: "경상남도", 제주: "제주특별자치도",
+};
+export const migrateRegion = (r) => LEGACY_REGIONS[r] ?? r ?? "";
 
 const NATIONWIDE_ORG_TYPES = new Set(["중앙행정기관", "공공기관"]);
 const NO_PERSON_TRAIT = "0322"; // 해당사항없음
@@ -32,14 +48,20 @@ export const INCOME_LABELS = {
 };
 
 export const emptyProfile = () => ({
-  age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "",
+  age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "", district: "",
   persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular",
 });
 
-function matchesRegion(service, region) {
+/**
+ * 지역 일치. 정책의 지역(r: 시·도, g: 시·군·구)은 파이프라인이 기관명에서 확실한 경우만 채운다.
+ * - 지역을 알 수 없는 정책은 중앙행정기관·공공기관(전국 공통)만 포함한다.
+ * - 시·군·구를 골랐으면, 같은 시·도의 다른 시·군·구 정책은 뺀다. 시·도 단위(g 없음) 정책은 남긴다.
+ */
+function matchesRegion(service, { region, district }) {
   if (!region) return true;
-  if (NATIONWIDE_ORG_TYPES.has(service.ot)) return true;
-  return (service.o ?? "").includes(REGION_NAMES[region] ?? region);
+  if (!service.r) return NATIONWIDE_ORG_TYPES.has(service.ot);
+  if (service.r !== region) return false;
+  return !district || !service.g || service.g === district;
 }
 
 // 선택한 특성과 서비스 대상 코드가 겹치는지. 선택이 없으면 "해당사항없음" 코드를 기준으로 본다.
@@ -71,7 +93,7 @@ export const isClosed = (service, today) => deadlineState(service, today)?.state
 export function matchService(service, profile, today = todayInt()) {
   const c = service.c ?? {};
 
-  if (!matchesRegion(service, profile.region)) return false;
+  if (!matchesRegion(service, profile)) return false;
   if (profile.field && service.f !== profile.field) return false;
   if (!profile.showClosed && isClosed(service, today)) return false;
 

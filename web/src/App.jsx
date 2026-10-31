@@ -6,7 +6,10 @@ import {
   HOUSEHOLD_TRAITS,
   INCOME_LABELS,
   PERSON_TRAITS,
-  REGION_NAMES,
+  migrateRegion,
+  orderRegions,
+  regionLabel,
+  REGION_SHORT,
   candidateAges,
   emptyProfile,
   findServices,
@@ -28,6 +31,8 @@ function loadSavedProfile() {
     // 예전 버전은 나이를 저장했다. 출생연도로 바꿔 이어서 쓴다.
     if (p.birthYear == null && Number.isInteger(p.age)) p.birthYear = new Date().getFullYear() - p.age;
     p.age = null;
+    p.region = migrateRegion(p.region);
+    p.district = p.district ?? "";
     return p;
   } catch {
     return null;
@@ -91,7 +96,7 @@ function summarize(p) {
   const parts = [];
   if (p.birthYear) parts.push(`${p.birthYear}년생`);
   if (p.sex) parts.push(p.sex === "M" ? "남성" : "여성");
-  if (p.region) parts.push(p.region);
+  if (p.region) parts.push(`${regionLabel(p.region)}${p.district ? ` ${p.district}` : ""}`);
   if (p.income) parts.push(INCOME_LABELS[p.income]);
   const traits = [...p.persons.map((c) => PERSON_TRAITS[c]), ...p.households.map((c) => HOUSEHOLD_TRAITS[c])].filter(Boolean);
   if (traits.length) parts.push(traits.length > 2 ? `${traits.slice(0, 2).join(", ")} 외 ${traits.length - 2}` : traits.join(", "));
@@ -147,6 +152,24 @@ export default function App() {
       .slice(0, 5);
   }, [data, recent]);
   const recentIds = useMemo(() => new Set(recent.map((r) => r.id)), [recent]);
+
+  // 지역·시군구 선택지는 데이터에서 온다. 데이터를 받기 전에는 알려진 시·도만 보여준다.
+  const regions = useMemo(
+    () => orderRegions(data?.meta?.regions ?? Object.keys(REGION_SHORT).map((name) => ({ name, districts: [] }))),
+    [data],
+  );
+  const districts = regions.find((r) => r.name === profile.region)?.districts ?? [];
+
+  // 저장돼 있던 지역·시군구가 지금 데이터에 없으면(행정구역 개편 등) 해당 선택을 비운다
+  useEffect(() => {
+    if (!data?.meta?.regions) return;
+    setProfile((p) => {
+      const region = regions.some((r) => r.name === p.region) ? p.region : "";
+      const list = regions.find((r) => r.name === region)?.districts ?? [];
+      const district = list.includes(p.district) ? p.district : "";
+      return region === p.region && district === p.district ? p : { ...p, region, district };
+    });
+  }, [data, regions]);
 
   const results = useMemo(() => (data ? findServices(data.services, profile) : []), [data, profile]);
   // 신청 기간이 끝나서 숨긴 건수(같은 조건에서 마감 건을 포함했을 때와의 차이)
@@ -264,21 +287,37 @@ export default function App() {
             <div className="sidebar-body">
               <div className="fields">
                 <label className="field">
+                  <span className="label">지역</span>
+                  <select className="select" value={profile.region} onChange={(e) => set({ region: e.target.value, district: "" })}>
+                    <option value="">전국</option>
+                    {regions.map((r) => (
+                      <option key={r.name} value={r.name}>{regionLabel(r.name)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="label">시·군·구</span>
+                  <select className="select" value={profile.district} disabled={!districts.length} onChange={(e) => set({ district: e.target.value })}>
+                    <option value="">{!profile.region ? "지역을 먼저 선택" : districts.length ? "시·군·구 전체" : "해당 없음"}</option>
+                    {districts.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </select>
+                </label>
+                {profile.region && districts.length > 0 && (
+                  <p className="hint full" aria-live="polite">
+                    {profile.district
+                      ? `${regionLabel(profile.region)} ${profile.district} 정책과 ${regionLabel(profile.region)} 전체·전국 정책을 보여줘요.`
+                      : "시·군·구까지 고르면 내 동네 정책만 보여줘요."}
+                  </p>
+                )}
+                <label className="field full">
                   <span className="label">출생연도</span>
                   <span className="input-suffix">
                     <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="예: 1995"
                       value={birthText} onChange={onBirth} aria-describedby="birth-hint" />
                     <span>년생</span>
                   </span>
-                </label>
-                <label className="field">
-                  <span className="label">지역</span>
-                  <select className="select" value={profile.region} onChange={(e) => set({ region: e.target.value })}>
-                    <option value="">전국</option>
-                    {Object.keys(REGION_NAMES).map((r) => (
-                      <option key={r}>{r}</option>
-                    ))}
-                  </select>
                 </label>
                 <p className="hint full" id="birth-hint" aria-live="polite">{birthHint}</p>
                 <div className="field full" role="radiogroup" aria-label="성별">
