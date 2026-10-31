@@ -1,32 +1,35 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ title }}</title>
-<meta name="description" content="{{ description }}">
-{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
-<meta property="og:type" content="article">
-<meta property="og:title" content="{{ title }}">
-<meta property="og:description" content="{{ description }}">
-{% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
-<link rel="stylesheet" href="/page.css">
-<script type="application/ld+json">{{ jsonld | safe }}</script>
-</head>
-<body>
-<main class="doc">
+{% extends "base.html.j2" %}
+{% set og_type = "article" %}
+{% block head_extra %}<script type="application/ld+json">{{ jsonld | safe }}</script>{% endblock %}
+
+{% block main %}
+<main class="wrap doc">
   <nav class="crumbs"><a href="/">내 혜택 찾기</a> › <a href="{{ field_url }}">{{ s["서비스분야"] }}</a></nav>
+  <div class="badges">
+    <span class="badge badge-brand">{{ s["서비스분야"] }}</span>
+    {% if s["지원유형"] %}<span class="badge">{{ s["지원유형"] }}</span>{% endif %}
+  </div>
   <h1>{{ s["서비스명"] }}</h1>
-  <p class="meta">{{ s["소관기관명"] }}{% if s["지원유형"] %} · 지원유형 {{ s["지원유형"] }}{% endif %}</p>
   {% if s["서비스목적요약"] %}<p class="lead">{{ s["서비스목적요약"] }}</p>{% endif %}
 
+  <dl class="facts card">
+    <div><dt>소관기관</dt><dd>{{ s["소관기관명"] }}</dd></div>
+    {% if s["접수기관"] %}<div><dt>접수기관</dt><dd>{{ s["접수기관"] }}</dd></div>{% endif %}
+    {% if s["전화문의"] %}<div><dt>문의</dt><dd>{{ s["전화문의"] }}</dd></div>{% endif %}
+  </dl>
+
+  <div class="cta-row">
+    <a class="btn btn-primary" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 페이지에서 신청·확인하기 →</a>
+    <a class="btn" href="/">내 조건에 맞는 다른 혜택 찾기</a>
+  </div>
+
   {% if no_conditions %}
-  <section class="who">
+  <section class="who card">
     <h2>이런 분이 해당될 수 있어요</h2>
     <p>공공데이터에 지원조건 코드가 없는 서비스입니다. 아래 원문과 공식 페이지에서 대상을 확인하세요.</p>
   </section>
   {% else %}
-  <section class="who">
+  <section class="who card">
     <h2>이런 분이 해당될 수 있어요</h2>
     {% if who %}
     <dl>{% for k, v in who %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
@@ -39,36 +42,20 @@
 
   {% for label, key in sections %}
   {% if s[key] %}
-  <section>
+  <section class="card">
     <h2>{{ label }}</h2>
     {% for para in paragraphs(s[key]) %}<p>{{ para }}</p>{% endfor %}
   </section>
   {% endif %}
   {% endfor %}
 
-  <section>
-    <h2>문의·접수</h2>
-    <ul>
-      {% if s["접수기관"] %}<li>접수기관: {{ s["접수기관"] }}</li>{% endif %}
-      {% if s["부서명"] %}<li>담당부서: {{ s["부서명"] }}</li>{% endif %}
-      {% if s["전화문의"] %}<li>전화문의: {{ s["전화문의"] }}</li>{% endif %}
-    </ul>
-  </section>
-
-  <p><a class="cta" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 페이지에서 신청·확인하기 →</a></p>
-  <p><a href="/">내 나이·소득·지역에 맞는 다른 혜택 찾기 →</a></p>
-
   {% if related %}
-  <section>
+  <section class="card">
     <h2>함께 보면 좋은 지원</h2>
-    <ul>{% for r in related %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}</a> <span class="muted">{{ r["소관기관명"] }}</span></li>{% endfor %}</ul>
+    <ul class="link-list">{% for r in related %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}<span class="muted">{{ r["소관기관명"] }}</span></a></li>{% endfor %}</ul>
   </section>
   {% endif %}
-
-  <footer>
-    <p>출처: 행정안전부 공공서비스(혜택) 정보 · 데이터 기준일 {{ updated }}</p>
-    <p>이 페이지는 공공데이터를 그대로 안내하는 것이며 자격을 확정하지 않습니다. 지원 여부와 신청은 반드시 위 공식 페이지에서 확인하세요.</p>
-  </footer>
 </main>
-</body>
-</html>
+{% endblock %}
+
+{% block footer_note %}<p>이 페이지는 공공데이터를 그대로 안내하는 것이며 자격을 확정하지 않습니다. 지원 여부와 신청은 반드시 위 공식 페이지에서 확인하세요.</p>{% endblock %}

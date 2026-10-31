@@ -61,20 +61,22 @@ export default function Subscribe({ profile }) {
 
   if (state.phase === "done") {
     return (
-      <section className="subscribe">
-        <p>{state.message}</p>
+      <section className="card panel subscribe" role="status">
+        <h3><span className="badge badge-ok">완료</span>확인 메일을 보냈어요</h3>
+        <p className="muted" style={{ marginTop: 8 }}>{state.message}</p>
       </section>
     );
   }
 
   return (
-    <section className="subscribe">
-      <h3>새로 등록·변경되는 지원 알림 받기</h3>
-      <p className="muted">
-        위에서 입력한 조건(나이, 성별, 소득, 지역, 상황)에 맞는 새 지원이 등록되거나 내용이 바뀌면 이메일로 알려드립니다.
+    <section className="card panel subscribe">
+      <h3>🔔 새 지원 알림 받기</h3>
+      <p className="muted" style={{ marginTop: 6 }}>
+        왼쪽에 입력한 조건에 맞는 지원이 새로 등록되거나 바뀌면 이메일로 알려드립니다.
       </p>
       <form onSubmit={submit}>
         <input
+          className="input"
           type="email"
           required
           placeholder="이메일 주소"
@@ -94,14 +96,14 @@ export default function Subscribe({ profile }) {
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>
             개인정보 수집·이용에 동의합니다. (수집 항목: 이메일, 입력한 조건 / 목적: 신규·변경 지원 알림 발송 / 보유: 수신거부 시까지, 거부하면 즉시 삭제)
-            <a href="/privacy.html" target="_blank" rel="noreferrer"> 자세히</a>
+            <a href="/privacy" target="_blank" rel="noreferrer"> 자세히</a>
           </span>
         </label>
         <div ref={widget} />
-        <button className="more" type="submit" disabled={!consent || state.phase === "sending"}>
+        <button className="btn btn-primary btn-block" type="submit" disabled={!consent || state.phase === "sending"}>
           {state.phase === "sending" ? "보내는 중…" : "확인 메일 받기"}
         </button>
-        {state.phase === "error" && <p className="notice">{state.message}</p>}
+        {state.phase === "error" && <p className="notice" role="alert">{state.message}</p>}
       </form>
     </section>
   );

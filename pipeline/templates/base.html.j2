@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{ title }}</title>
+<meta name="description" content="{{ description }}">
+{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+<meta property="og:type" content="{{ og_type | default('website') }}">
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ description }}">
+{% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+<link rel="stylesheet" href="/page.css">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>내 혜택 찾기</a>
+    <a class="nav-link" href="/">내 조건으로 찾기</a>
+  </div>
+</header>
+{% block main %}{% endblock %}
+<footer class="site-footer">
+  <div class="wrap">
+    {% block footer_note %}{% endblock %}
+    <p>출처: 행정안전부 공공서비스(혜택) 정보 · 데이터 기준일 {{ updated }}</p>
+    <p><a href="/privacy">개인정보 처리 안내</a> · 이 서비스는 공공데이터를 안내하며 정부·지자체와 무관합니다.</p>
+  </div>
+</footer>
+</body>
+</html>

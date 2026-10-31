@@ -1,20 +1,12 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ title }}</title>
-<meta name="description" content="{{ description }}">
-{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
-<link rel="stylesheet" href="/page.css">
-</head>
-<body>
-<main class="doc">
-  <nav class="crumbs"><a href="/">내 혜택 찾기</a></nav>
+{% extends "base.html.j2" %}
+
+{% block main %}
+<main class="wrap doc">
+  <nav class="crumbs"><a href="/">내 혜택 찾기</a> › {{ field }}</nav>
   <h1>{{ field }} 지원 서비스</h1>
   <p class="lead">조회가 많은 {{ field }} 분야 지원 {{ items | length }}건입니다. 전체 {{ total }}건 중 인기순이며, 내 조건에 맞는 것만 보려면 <a href="/">혜택 찾기</a>를 이용하세요.</p>
-  <ul>{% for r in items %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}</a> <span class="muted">{{ r["소관기관명"] }}</span></li>{% endfor %}</ul>
-  <footer><p>출처: 행정안전부 공공서비스(혜택) 정보 · 데이터 기준일 {{ updated }}</p></footer>
+  <section class="card">
+    <ul class="link-list">{% for r in items %}<li><a href="/p/{{ r['서비스ID'] }}">{{ r["서비스명"] }}<span class="muted">{{ r["소관기관명"] }}</span></a></li>{% endfor %}</ul>
+  </section>
 </main>
-</body>
-</html>
+{% endblock %}
