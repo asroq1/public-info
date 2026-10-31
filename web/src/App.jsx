@@ -14,6 +14,9 @@ import {
   emptyProfile,
   findServices,
   groupResults,
+  isOnline,
+  KIND_FAMILIES,
+  methodLabels,
 } from "./matcher.js";
 
 const PAGE_SIZE = 20;
@@ -95,6 +98,19 @@ function Reasons({ reasons }) {
         <span key={`${r.kind}-${r.label}`} className={`reason reason-${r.kind}`} title={REASON_TITLES[r.kind]}>{r.label}</span>
       ))}
       {extra > 0 && <span className="reason-more">+{extra}</span>}
+    </div>
+  );
+}
+
+// 지원 형태(무엇을 받나), 신청 방식(어떻게 하나), 원문에서 발췌한 금액 문구. 카드를 열지 않고 판단하게 돕는다.
+function Glance({ s }) {
+  const methods = methodLabels(s);
+  if (!s.k?.length && !methods.length && !s.p) return null;
+  return (
+    <div className="glance" aria-label="한눈에 보기">
+      {s.p && <span className="gchip gchip-amount" title="지원내용 원문에서 발췌한 금액이에요. 대상과 조건에 따라 달라질 수 있어요.">{s.p}</span>}
+      {s.k?.map((label) => <span key={label} className="gchip">{label}</span>)}
+      {methods.map((label) => <span key={label} className={`gchip gchip-method${label === "신청 불필요" ? " gchip-free" : ""}`}>{label}</span>)}
     </div>
   );
 }
@@ -463,10 +479,19 @@ export default function App() {
                   <option key={f}>{f}</option>
                 ))}
               </select>
+              <select className="select" aria-label="지원 형태" value={profile.kind} onChange={(e) => set({ kind: e.target.value })}>
+                <option value="">모든 지원 형태</option>
+                {Object.entries(KIND_FAMILIES).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
               <select className="select" aria-label="정렬" value={profile.sort} onChange={(e) => set({ sort: e.target.value })}>
                 <option value="popular">인기순</option>
                 <option value="deadline">마감 임박순</option>
               </select>
+              <button type="button" className="chip toggle" aria-pressed={profile.onlineOnly} onClick={() => set({ onlineOnly: !profile.onlineOnly })}>
+                온라인 신청 가능
+              </button>
             </div>
 
             <div className="results-head">
@@ -526,6 +551,7 @@ export default function App() {
                       <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
                     </div>
                   </div>
+                  <Glance s={s} />
                   <Reasons reasons={s.reasons} />
                   <dl className="kv">
                     {s.t && (<><dt>대상</dt><dd>{s.t}</dd></>)}

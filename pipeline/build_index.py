@@ -18,6 +18,7 @@ from app.deadline import parse_deadline
 from app.detail import build_detail
 from app.gov24 import fetch_all
 from app.regions import RegionResolver
+from app.summary import amount_snippet, apply_methods, kind_families, support_kinds
 
 ROOT = Path(__file__).resolve().parent
 INDEX_PATH = ROOT.parent / "web" / "public" / "data" / "index.json"
@@ -65,6 +66,9 @@ def build() -> tuple[list[dict], list[dict], list[dict]]:
             "v": int(s.get("조회수") or 0),
             "c": cond,
             **({"dl": dl} if dl else {}),
+            **({"k": kinds, "kf": kind_families(s.get("지원유형"))} if (kinds := support_kinds(s.get("지원유형"))) else {}),
+            **({"m": methods} if (methods := apply_methods(s.get("신청방법"))) else {}),
+            **({"p": amount} if (amount := amount_snippet(s.get("지원내용"))) else {}),
             **({"r": sido} if sido else {}),
             **({"g": district} if district else {}),
         })

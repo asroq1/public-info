@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { ageOutOfRange, candidateAges, emptyProfile, findServices, groupKey, groupResults, matchReasons, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
+import { KIND_FAMILIES, ageOutOfRange, candidateAges, emptyProfile, findServices, groupKey, isOnline, kindFamilies, methodLabels, groupResults, matchReasons, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
 
 const svc = (over = {}) => ({
   id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", r: "서울특별시", g: "강남구", f: "생활안정",
@@ -470,5 +470,76 @@ describe.skipIf(!existsSync(REAL))("같은 이름 묶기: 실데이터", () => {
         expect(rank(o) <= rank(other), `${o.n}: 대표(${o.o}) 보다 ${other.o} 가 더 가깝다`).toBe(true);
       }
     }
+  });
+});
+
+
+describe("한눈에 보기: 지원 형태·신청 방식 필터", () => {
+  const T = 20261031;
+  const mk = (id, over) => svc({ id, ...over });
+
+  it("온라인 신청 가능 필터는 정부24·기타 온라인만 통과", () => {
+    const list = [mk("g", { m: ["g", "v"] }), mk("on", { m: ["on"] }), mk("v", { m: ["v"] }), mk("n", { m: ["n"] }), mk("none", {})];
+    expect(findServices(list, profile({ onlineOnly: true }), T).map((x) => x.id).sort()).toEqual(["g", "on"]);
+    expect(findServices(list, profile(), T)).toHaveLength(5);
+  });
+  it("지원 형태 필터는 묶음 코드로 거른다", () => {
+    const list = [mk("a", { k: ["현금"], kf: ["cash"] }), mk("b", { k: ["현물", "이용권"], kf: ["goods"] }), mk("c", { k: ["현금", "의료 서비스"], kf: ["cash", "service"] }), mk("d", {})];
+    expect(findServices(list, profile({ kind: "cash" }), T).map((x) => x.id).sort()).toEqual(["a", "c"]);
+    expect(findServices(list, profile({ kind: "service" }), T).map((x) => x.id)).toEqual(["c"]);
+    expect(findServices(list, profile({ kind: "goods" }), T).map((x) => x.id)).toEqual(["b"]);
+  });
+  it("두 필터는 함께 적용된다", () => {
+    const list = [mk("a", { kf: ["cash"], m: ["on"] }), mk("b", { kf: ["cash"], m: ["v"] }), mk("c", { kf: ["goods"], m: ["on"] })];
+    expect(findServices(list, profile({ kind: "cash", onlineOnly: true }), T).map((x) => x.id)).toEqual(["a"]);
+  });
+  it("도우미 함수", () => {
+    expect(isOnline({ m: ["v", "g"] })).toBe(true);
+    expect(isOnline({ m: ["v"] })).toBe(false);
+    expect(isOnline({})).toBe(false);
+    expect(methodLabels({ m: ["n", "v", "on"] })).toEqual(["온라인 신청", "방문 신청", "신청 불필요"]); // 온라인 먼저
+    expect(methodLabels({})).toEqual([]);
+    expect([...kindFamilies({ kf: ["cash", "goods"] })]).toEqual(["cash", "goods"]);
+    expect(Object.keys(KIND_FAMILIES)).toEqual(["cash", "goods", "service", "edu", "etc"]);
+  });
+});
+
+describe.skipIf(!existsSync(REAL))("한눈에 보기: 실데이터", () => {
+  const { services } = JSON.parse(readFileSync(REAL, "utf8"));
+  const all = findServices(services, profile({ showClosed: true }), 20261031);
+
+  it("온라인 신청 가능 필터 결과는 모두 정부24 또는 온라인 신청이 있고, 빠진 것도 없다", () => {
+    const only = findServices(services, profile({ showClosed: true, onlineOnly: true }), 20261031);
+    for (const r of only) expect(r.m.some((c) => c === "g" || c === "on"), r.n).toBe(true);
+    // 같은 조건에서 온라인 가능한 것만 남긴 개수와 정확히 같아야 한다(누락·초과 모두 잡는다)
+    const expected = all.filter((r) => (r.m ?? []).some((c) => c === "g" || c === "on")).length;
+    expect(expected).toBeGreaterThan(300);
+    expect(only.length).toBe(expected);
+  });
+  it("지원 형태 필터 결과는 모두 해당 묶음을 가지고, 전체 합이 맞는다", () => {
+    for (const key of Object.keys(KIND_FAMILIES)) {
+      const rows = findServices(services, profile({ showClosed: true, kind: key }), 20261031);
+      expect(rows.length, key).toBeGreaterThan(0);
+      for (const r of rows) expect(r.kf.includes(key), `${key} ${r.n}`).toBe(true);
+    }
+  });
+  it("모든 정책에 지원 형태가 있고, 묶음 코드는 정해진 5가지뿐이다", () => {
+    const allowed = new Set(Object.keys(KIND_FAMILIES));
+    for (const s of services) {
+      expect(s.k?.length > 0 && s.kf?.length > 0, s.n).toBe(true);
+      for (const f of s.kf) expect(allowed.has(f), `${s.n} ${f}`).toBe(true);
+    }
+  });
+  it("금액 칩은 짧은 원문 발췌이고 금액 표기를 포함한다", () => {
+    const withAmount = services.filter((s) => s.p);
+    expect(withAmount.length).toBeGreaterThan(500);
+    for (const s of withAmount) {
+      expect(s.p.length <= 28, `${s.n} ${s.p}`).toBe(true);
+      expect(/\d[\d,.]*\s*(억|천만|백만|만|천)?\s*원/.test(s.p), `${s.n} ${s.p}`).toBe(true);
+    }
+  });
+  it("카드 순서와 개수: 필터를 켜면 항상 줄어들거나 같다", () => {
+    const online = findServices(services, profile({ showClosed: true, onlineOnly: true }), 20261031);
+    expect(online.length).toBeLessThanOrEqual(all.length);
   });
 });

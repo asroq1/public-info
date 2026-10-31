@@ -1,0 +1,22 @@
+{
+  "현금":          { "label": "현금",           "family": "cash" },
+  "현금(감면)":    { "label": "요금·세금 감면", "family": "cash" },
+  "현금(보험)":    { "label": "보험",           "family": "cash" },
+  "현금(장학금)":  { "label": "장학금",         "family": "cash" },
+  "현금(융자)":    { "label": "융자·대출",      "family": "cash" },
+  "현물":          { "label": "현물",           "family": "goods" },
+  "이용권":        { "label": "이용권",         "family": "goods" },
+  "서비스(의료)":  { "label": "의료 서비스",    "family": "service" },
+  "의료지원":      { "label": "의료 서비스",    "family": "service" },
+  "서비스(돌봄)":  { "label": "돌봄 서비스",    "family": "service" },
+  "서비스(일자리)":{ "label": "일자리",         "family": "service" },
+  "기타(상담)":    { "label": "상담",           "family": "service" },
+  "상담/법률지원": { "label": "상담·법률",      "family": "service" },
+  "기타(교육)":    { "label": "교육",           "family": "edu" },
+  "시설이용":      { "label": "시설 이용",      "family": "edu" },
+  "문화/여가지원": { "label": "문화·여가",      "family": "edu" },
+  "기술지원":      { "label": "기술 지원",      "family": "etc" },
+  "민원":          { "label": "민원",           "family": "etc" },
+  "봉사/기부":     { "label": "봉사·기부",      "family": "etc" },
+  "기타":          { "label": "기타",           "family": "etc" }
+}

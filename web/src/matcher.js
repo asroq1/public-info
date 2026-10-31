@@ -49,7 +49,7 @@ export const INCOME_LABELS = {
 
 export const emptyProfile = () => ({
   age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "", district: "",
-  persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular", group: true,
+  persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular", group: true, kind: "", onlineOnly: false,
 });
 
 /**
@@ -70,6 +70,18 @@ function matchesTraits(serviceCodes, selected, noneCode) {
   const wanted = selected.length ? selected : [noneCode];
   return wanted.some((code) => serviceCodes.includes(code));
 }
+
+// ---- 한눈에 보기: 지원 형태·신청 방식 ----------------------------------------------------------
+// 인덱스의 k(지원 형태 이름 목록), kf(지원 형태 묶음), m(신청 방식 코드: g 정부24, on 온라인, v 방문, n 신청 불필요)을 쓴다.
+export const KIND_FAMILIES = { cash: "현금·감면·융자", goods: "현물·이용권", service: "의료·돌봄·일자리·상담", edu: "교육·시설·문화", etc: "기타" };
+export const METHOD_LABELS = { g: "정부24 신청", on: "온라인 신청", v: "방문 신청", n: "신청 불필요" };
+const METHOD_ORDER = ["g", "on", "v", "n"];
+const ONLINE_METHODS = new Set(["g", "on"]);
+
+export const isOnline = (service) => (service.m ?? []).some((code) => ONLINE_METHODS.has(code));
+// kf: 파이프라인이 지원 형태를 묶음(cash, goods, service, edu, etc)으로 바꿔 넣어 둔다(JSON 파일을 직접 읽지 않는다)
+export const kindFamilies = (service) => new Set(service.kf ?? []);
+export const methodLabels = (service) => METHOD_ORDER.filter((code) => service.m?.includes(code)).map((code) => METHOD_LABELS[code]);
 
 /** 오늘 날짜를 YYYYMMDD 정수로. 브라우저 기기의 날짜를 쓴다. */
 export const todayInt = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -96,6 +108,8 @@ export function matchService(service, profile, today = todayInt()) {
   if (!matchesRegion(service, profile)) return false;
   if (profile.field && service.f !== profile.field) return false;
   if (!profile.showClosed && isClosed(service, today)) return false;
+  if (profile.kind && !kindFamilies(service).has(profile.kind)) return false;
+  if (profile.onlineOnly && !isOnline(service)) return false;
 
   if (profile.q) {
     const hay = `${service.n} ${service.s} ${service.t}`;

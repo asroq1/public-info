@@ -30,6 +30,8 @@ cd web && npm test && npm run build                   # 웹 테스트·빌드 (�
 - 신청기한은 연도가 있는 확실한 날짜만 마감 판단에 쓰고, 매년·연중·상시 등 반복 표현은 숨기지 않는다(`pipeline/app/deadline.py`).
 - 행정구역은 바뀐다(광주광역시+전라남도 → 전남광주통합특별시). 지역 목록은 데이터에서 만들고 코드에 시·도 목록을 박지 않는다.
 - Cloudflare Pages 는 `/p/ID.html` 을 `/p/ID` 로 리다이렉트한다. canonical·사이트맵·링크는 확장자 없는 주소를 쓴다(로컬 `npm run dev` 에서는 `.html` 로 연다).
+- 카드의 **금액 칩은 틀리면 거짓 정보**다(`pipeline/app/summary.py`). 같은 문장에 지원·지급 표현이 있고, 비용·소득·재산·급지·N인 가구 기준·차등 같은 한정 표현이 없고, 서로 다른 금액이 딱 하나일 때만 원문 그대로 발췌한다. 규칙을 넓히기 전에 실데이터에서 오탐을 직접 찾아본다.
+- 웹과 Functions 가 함께 쓰는 `web/src/matcher.js` 는 JSON 파일을 import 하지 않는다(Functions 번들러 호환). 필요한 값은 파이프라인이 인덱스에 담는다.
 - **매년 갱신**: `web/src/income.js` 의 기준 중위소득 표(보건복지부, 매년 8월 1일까지 공표).
 - 분야 아이콘·색·공유 이미지 파일명은 `web/src/fieldIcons.json` 한 곳에서 정의. 바꾸면 `scripts/make_og.py` 로 공유 이미지를 다시 만든다.
 
