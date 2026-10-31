@@ -1,3 +1,4 @@
+import html as htmllib
 import json
 import re
 
@@ -93,3 +94,11 @@ def test_who_section_rendering_and_empty_states():
     assert "지원조건 코드가 없는 서비스" in bp.render_policy(s, [], {}, "2026-10-29")
     s = {**SERVICE, "conditions": {"g": ["M", "F"]}}
     assert "별도 제한 코드가 없습니다" in bp.render_policy(s, [], {}, "2026-10-29")
+
+
+def test_meta_description_fits_naver_limit():
+    long_summary = "가" * 300
+    s = {**SERVICE, "서비스목적요약": long_summary, "conditions": {}}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    desc = re.search(r'<meta name="description" content="([^"]*)"', html).group(1)
+    assert len(htmllib.unescape(desc)) <= 80  # 브라우저가 읽는 글자 수 기준

@@ -101,7 +101,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         s=s,
         title=f"{s['서비스명']} 지원대상·신청방법 | 내 혜택 찾기",
         description=clip(
-            f"{org} {s['서비스명']}. {s.get('서비스목적요약') or s.get('지원대상') or ''}", 150
+            f"{org} {s['서비스명']}. {s.get('서비스목적요약') or s.get('지원대상') or ''}", 80
         ),
         canonical=url,
         jsonld=jsonld(s, url),
