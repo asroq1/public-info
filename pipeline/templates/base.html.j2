@@ -8,9 +8,21 @@
 <meta name="description" content="{{ description }}">
 {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
 <meta property="og:type" content="{{ og_type | default('website') }}">
+<meta property="og:site_name" content="내 혜택 찾기">
+<meta property="og:locale" content="ko_KR">
 <meta property="og:title" content="{{ title }}">
 <meta property="og:description" content="{{ description }}">
 {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+{% if site_url %}{% set og_url = site_url ~ (og_image | default('/og/default.png')) %}
+<meta property="og:image" content="{{ og_url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="내 혜택 찾기 - 내가 받을 수 있는 지원금을 한 번에">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ description }}">
+<meta name="twitter:image" content="{{ og_url }}">
+{% endif %}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">

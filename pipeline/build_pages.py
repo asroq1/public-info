@@ -119,6 +119,8 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str) 
         no_conditions=bool((s.get("conditions") or {}).get("nc")),
         field_url=field_urls.get(s.get("서비스분야"), "/"),
         art=field_art(s.get("서비스분야")),
+        site_url=SITE_URL,
+        og_image=f"/og/{field_art(s.get('서비스분야'))['slug']}.png",
         detail=s.get("detail") or {},
         updated=updated,
     )
@@ -128,6 +130,8 @@ def render_field(field: str, items: list[dict], total: int, num: int, updated: s
     return env.get_template("field.html.j2").render(
         field=field,
         art=field_art(field),
+        site_url=SITE_URL,
+        og_image=f"/og/{field_art(field)['slug']}.png",
         items=items,
         total=total,
         updated=updated,

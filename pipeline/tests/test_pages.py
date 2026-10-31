@@ -146,3 +146,24 @@ def test_without_detail_falls_back_to_official_page_button():
 def test_detail_text_is_escaped():
     html = _page({"docs": ["<img src=x onerror=alert(1)>"], "laws": ["<script>x</script>법"]})
     assert "<img src=x" not in html and "<script>x</script>" not in html
+
+
+def test_share_image_tags_use_absolute_url_and_field_image(monkeypatch):
+    s = {**SERVICE, "conditions": {}}
+    monkeypatch.setattr(bp, "SITE_URL", "https://site.kr")
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    slug = bp.field_art("생활안정")["slug"]
+    assert f'property="og:image" content="https://site.kr/og/{slug}.png"' in html
+    assert 'name="twitter:card" content="summary_large_image"' in html
+    assert 'property="og:image:width" content="1200"' in html
+    monkeypatch.setattr(bp, "SITE_URL", "")
+    assert "og:image" not in bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")  # 절대 주소를 만들 수 없으면 생략
+
+
+def test_every_field_has_a_share_image_file():
+    og_dir = bp.ROOT.parent / "web" / "public" / "og"
+    assert (og_dir / "default.png").exists()
+    slugs = [a["slug"] for a in bp.FIELD_ICONS.values()]
+    assert len(slugs) == len(set(slugs)), "slug 중복"
+    missing = [s for s in slugs if not (og_dir / f"{s}.png").exists()]
+    assert not missing, f"공유 이미지가 없는 분야: {missing} (scripts/make_og.py 를 실행하세요)"
