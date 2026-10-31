@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@4.4.4"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--browser", "chrome",
+        "--isolated",
+        "--allowed-origins", "http://localhost:*;http://127.0.0.1:*;https://public-info-224.pages.dev"
+      ]
+    }
+  }
+}

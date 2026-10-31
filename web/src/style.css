@@ -135,3 +135,15 @@
 .reasons-label svg { width: 14px; height: 14px; }
 .reason { padding: 3px 10px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); font-size: 12.5px; font-weight: 600; line-height: 1.5; }
 .reason-more { font-size: 12.5px; color: var(--muted); }
+
+/* 같은 이름 묶기 */
+.others { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.others summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--brand); padding: 4px 0; }
+.others > .muted { margin: 6px 0 4px; }
+.others ul { list-style: none; margin: 4px 0 0; padding: 0; max-height: 280px; overflow: auto; }
+.others li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 2px; border-top: 1px solid var(--line); font-size: 14px; }
+.others li:first-child { border-top: 0; }
+.others a { display: flex; flex-direction: column; min-width: 0; color: var(--fg); text-decoration: none; }
+.others a:hover .o-org { color: var(--brand); text-decoration: underline; }
+.o-org { font-weight: 600; }
+.o-name { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

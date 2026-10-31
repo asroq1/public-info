@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { ageOutOfRange, candidateAges, emptyProfile, findServices, matchReasons, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
+import { ageOutOfRange, candidateAges, emptyProfile, findServices, groupKey, groupResults, matchReasons, matchService, migrateRegion, orderRegions, regionLabel } from "./matcher.js";
 
 const svc = (over = {}) => ({
   id: "1", n: "테스트", o: "서울특별시 강남구", ot: "시군구", r: "서울특별시", g: "강남구", f: "생활안정",
@@ -374,5 +374,101 @@ describe.skipIf(!existsSync(REAL))("일치 이유: 실데이터에서 거짓 칩
     const only = results.filter((r) => r.c?.p?.includes("0302") && !r.c.p.includes("0322") && r.c.p.length <= 4);
     expect(only.length).toBeGreaterThan(10);
     expect(only.every((r) => r.reasons.some((x) => x.label === "임산부"))).toBe(true);
+  });
+});
+
+
+describe("같은 이름 묶기", () => {
+  const T = 20261031;
+  const mk = (id, over) => svc({ id, v: 1, ...over });
+  const seoul = (id, g, n = "시민안전보험", over = {}) => mk(id, { n: `${g} ${n}`, o: `서울특별시 ${g}`, ot: "시군구", r: "서울특별시", g, ...over });
+
+  it("이름 앞의 자기 지역명, 괄호, 띄어쓰기, 가운뎃점을 무시하고 같은 키가 된다", () => {
+    const a = groupKey(seoul("a", "종로구", "산모·신생아 건강관리 지원"));
+    const b = groupKey(mk("b", { n: "산모신생아건강관리지원(확대)", ot: "시군구", r: "부산광역시", g: "해운대구" }));
+    const c = groupKey(mk("c", { n: "서울 산모신생아 건강관리 지원", ot: "시군구", r: "서울특별시", g: "강남구" }));
+    expect(a).toBe(b);
+    expect(a).toBe(c);
+  });
+  it("지역 단계는 괄호를 무시하고, 중앙·광역 단계는 괄호를 유지한다(하위 사업이 달라서)", () => {
+    const local = (n, g) => groupKey(mk("l", { n, ot: "시군구", r: "서울특별시", g }));
+    expect(local("지역화폐(강남사랑상품권)", "강남구")).toBe(local("지역화폐(송파사랑상품권)", "송파구"));
+    const central = (n) => groupKey(mk("c", { n, ot: "중앙행정기관" }));
+    expect(central("무료 소송대리 서비스(기초생활보장수급자)")).not.toBe(central("무료 소송대리 서비스(근로자)"));
+    expect(central("무료 소송대리 서비스(기초생활보장수급자)")).toBe(central("무료소송대리서비스 (기초생활보장수급자)"));
+  });
+  it("지역명이 띄어쓰기 없이 붙은 이름은 떼지 않는다(성북구민안전보험이 망가지지 않는다)", () => {
+    expect(groupKey(mk("x", { n: "성북구민안전보험", ot: "시군구", r: "서울특별시", g: "성북구" }))).toBe("l|성북구민안전보험");
+  });
+  it("중앙·광역·지역 단계가 다르면 이름이 같아도 묶지 않는다", () => {
+    const central = groupKey(mk("c", { n: "산모신생아건강관리지원", ot: "중앙행정기관" }));
+    const metro = groupKey(mk("m", { n: "산모신생아건강관리지원", ot: "광역시도", r: "서울특별시" }));
+    const local = groupKey(mk("l", { n: "산모신생아건강관리지원", ot: "시군구", r: "서울특별시", g: "강남구" }));
+    expect(new Set([central, metro, local]).size).toBe(3);
+  });
+  it("너무 짧은 이름은 묶지 않는다", () => {
+    expect(groupKey(mk("s", { n: "장학금", ot: "시군구" }))).toBeNull();
+    expect(groupKey(mk("s2", { n: "지역화폐", ot: "시군구" }))).not.toBeNull();
+  });
+
+  it("내 시·군·구 정책이 대표가 되고 나머지는 가까운 순으로 others", () => {
+    const rows = [seoul("1", "종로구"), seoul("2", "강남구"), seoul("3", "서초구"), mk("4", { n: "시민안전보험", ot: "시군구", r: "부산광역시", g: "중구", o: "부산광역시 중구" })];
+    const out = groupResults(rows.map((r) => ({ ...r, reasons: [], ageCheck: false, deadline: null })), profile({ region: "서울특별시", district: "강남구" }));
+    expect(out).toHaveLength(1);
+    expect(out[0].id).toBe("2");
+    expect(out[0].others.map((o) => o.id)).toEqual(["1", "3", "4"]);
+  });
+  it("지역을 고르지 않으면 조회수가 높은 것이 대표", () => {
+    const rows = [seoul("1", "종로구", "시민안전보험", { v: 5 }), seoul("2", "강남구", "시민안전보험", { v: 50 })];
+    const out = groupResults(rows.map((r) => ({ ...r, reasons: [], ageCheck: false, deadline: null })), profile());
+    expect(out[0].id).toBe("2");
+  });
+  it("마감된 것은 대표가 되지 않는다", () => {
+    const rows = [seoul("1", "종로구", "시민안전보험", { v: 100 }), seoul("2", "강남구", "시민안전보험", { v: 1 })].map((r, i) => ({ ...r, reasons: [], ageCheck: false, deadline: i === 0 ? { state: "closed", end: 20260101 } : null }));
+    expect(groupResults(rows, profile())[0].id).toBe("2");
+  });
+  it("묶음의 위치는 선택한 정렬에서 가장 앞선 구성원을 따른다", () => {
+    const rows = [mk("a", { n: "고유한정책이름하나" }), seoul("1", "종로구"), mk("b", { n: "고유한정책이름둘" }), seoul("2", "강남구")].map((r) => ({ ...r, reasons: [], ageCheck: false, deadline: null }));
+    const out = groupResults(rows, profile());
+    expect(out.map((o) => o.n.slice(0, 3))).toEqual(["고유한", "종로구", "고유한"]);
+    expect(out[1].others).toHaveLength(1);
+  });
+  it("묶어도 정책이 사라지지 않는다(대표 + others 합계가 입력 개수와 같다)", () => {
+    const rows = [seoul("1", "종로구"), seoul("2", "강남구"), mk("3", { n: "전혀다른정책입니다" })].map((r) => ({ ...r, reasons: [], ageCheck: false, deadline: null }));
+    const out = groupResults(rows, profile());
+    expect(out.reduce((n, o) => n + 1 + o.others.length, 0)).toBe(rows.length);
+  });
+});
+
+describe.skipIf(!existsSync(REAL))("같은 이름 묶기: 실데이터", () => {
+  const { services } = JSON.parse(readFileSync(REAL, "utf8"));
+  const rows = findServices(services, profile({ showClosed: true }), 20261031);
+
+  it("정책이 하나도 사라지거나 중복되지 않는다", () => {
+    const out = groupResults(rows, profile({ showClosed: true }));
+    const ids = out.flatMap((o) => [o.id, ...o.others.map((x) => x.id)]);
+    expect(ids).toHaveLength(rows.length);
+    expect(new Set(ids).size).toBe(rows.length);
+  });
+  it("한 묶음 안의 정책은 모두 같은 키를 가진다", () => {
+    for (const o of groupResults(rows, profile({ showClosed: true }))) {
+      const key = groupKey(o);
+      for (const other of o.others) expect(groupKey(other), `${o.n} / ${other.n}`).toBe(key);
+    }
+  });
+  it("실제로 카드 수가 크게 줄고, 큰 묶음이 있다", () => {
+    const out = groupResults(rows, profile({ showClosed: true }));
+    expect(out.length).toBeLessThan(rows.length * 0.8);
+    expect(Math.max(...out.map((o) => o.others.length))).toBeGreaterThan(30);
+  });
+  it("서울 강남구를 고르면 대표는 강남구·서울·전국 정책이다(다른 지역이 대표가 되지 않는다)", () => {
+    const p = profile({ region: "서울특별시", district: "강남구", showClosed: true });
+    const grouped = groupResults(findServices(services, p, 20261031), p);
+    for (const o of grouped) {
+      for (const other of o.others) {
+        const rank = (s) => (s.r === "서울특별시" && s.g === "강남구" ? 0 : s.r === "서울특별시" ? 1 : !s.r ? 2 : 3);
+        expect(rank(o) <= rank(other), `${o.n}: 대표(${o.o}) 보다 ${other.o} 가 더 가깝다`).toBe(true);
+      }
+    }
   });
 });

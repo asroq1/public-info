@@ -13,6 +13,7 @@ import {
   candidateAges,
   emptyProfile,
   findServices,
+  groupResults,
 } from "./matcher.js";
 
 const PAGE_SIZE = 20;
@@ -95,6 +96,28 @@ function Reasons({ reasons }) {
       ))}
       {extra > 0 && <span className="reason-more">+{extra}</span>}
     </div>
+  );
+}
+
+// 같은 이름의 다른 지역·기관 정책. 내용은 지역마다 다를 수 있어 합치지 않고, 하나씩 열어 볼 수 있게 접어 둔다.
+function OtherPlaces({ main, others }) {
+  if (!others?.length) return null;
+  return (
+    <details className="others">
+      <summary>같은 이름의 지원 {others.length}곳 더 보기</summary>
+      <p className="muted">이름은 같아도 금액과 대상은 지역마다 다를 수 있어요. 눌러서 각각 확인하세요.</p>
+      <ul>
+        {others.map((o) => (
+          <li key={o.id}>
+            <a href={`/p/${o.id}`}>
+              <span className="o-org">{o.o}</span>
+              {o.n !== main.n && <span className="o-name">{o.n}</span>}
+            </a>
+            <DeadlineBadge deadline={o.deadline} />
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -195,6 +218,13 @@ export default function App() {
   }, [data, regions]);
 
   const results = useMemo(() => (data ? findServices(data.services, profile) : []), [data, profile]);
+  // 같은 이름 정책을 대표 카드 하나로 묶는다(끄면 모두 따로 보여준다)
+  const cards = useMemo(
+    () => (profile.group ? groupResults(results, profile) : results.map((s) => ({ ...s, others: [] }))),
+    [results, profile],
+  );
+  const groupedAway = results.length - cards.length;
+
   // 신청 기간이 끝나서 숨긴 건수(같은 조건에서 마감 건을 포함했을 때와의 차이)
   const hiddenClosed = useMemo(
     () => (data && !profile.showClosed ? findServices(data.services, { ...profile, showClosed: true }).length - results.length : 0),
@@ -469,8 +499,18 @@ export default function App() {
               </div>
             )}
 
+            {data && (groupedAway > 0 || !profile.group) && (
+              <p className="closed-note" role="status">
+                {profile.group ? (
+                  <>같은 이름의 지원 {groupedAway.toLocaleString()}건은 카드 안에 묶었어요. <button type="button" className="link-btn inline" onClick={() => set({ group: false })}>묶지 않고 보기</button></>
+                ) : (
+                  <>같은 이름의 지원도 모두 따로 보고 있어요. <button type="button" className="link-btn inline" onClick={() => set({ group: true })}>같은 이름 묶기</button></>
+                )}
+              </p>
+            )}
+
             <ul className="list">
-              {results.slice(0, shown).map((s) => (
+              {cards.slice(0, shown).map((s) => (
                 <li key={s.id} className={`card result${s.deadline?.state === "closed" ? " closed" : ""}`}>
                   <div className="result-top">
                     <FieldThumb field={s.f} />
@@ -495,13 +535,14 @@ export default function App() {
                     <a className="btn" href={`/p/${s.id}`}>자세히 보기</a>
                     <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
                   </div>
+                  <OtherPlaces main={s} others={s.others} />
                 </li>
               ))}
             </ul>
 
-            {results.length > shown && (
+            {cards.length > shown && (
               <button type="button" className="btn btn-block more" onClick={() => setShown((n) => n + PAGE_SIZE)}>
-                더 보기 ({(results.length - shown).toLocaleString()}건 남음)
+                더 보기 ({(cards.length - shown).toLocaleString()}건 남음)
               </button>
             )}
           </section>

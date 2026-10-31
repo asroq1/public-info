@@ -49,7 +49,7 @@ export const INCOME_LABELS = {
 
 export const emptyProfile = () => ({
   age: null, birthYear: null, household: null, monthlyIncome: "", sex: null, income: null, region: "", district: "",
-  persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular",
+  persons: [], households: [], business: false, field: "", q: "", showClosed: false, sort: "popular", group: true,
 });
 
 /**
@@ -220,4 +220,82 @@ export function findServices(services, profile, today = todayInt()) {
     );
   }
   return rows.sort(byPopular);
+}
+
+// ---- 같은 이름 묶기 ------------------------------------------------------------------------------
+// 같은 이름의 정책이 여러 지자체에 반복된다(전체의 약 1/3). 이름이 같아도 금액·대상은 지역마다 다를 수 있으므로
+// 내용을 합치지 않고, 내게 가장 가까운 것을 대표 카드로 보이고 나머지는 "다른 곳"으로 접어 하나하나 열어 볼 수 있게 한다.
+//  - 중앙·공공기관 / 광역·교육청 / 그 밖의 지역 기관, 세 단계를 나눠 같은 단계끼리만 묶는다
+//    (중앙부처의 전국 사업이 지자체 카드 속에 숨지 않도록).
+//  - 이름 앞의 자기 지역명은 '띄어쓰기로 구분될 때만' 뗀다(성북구민안전보험 -> 민안전보험 이 되는 것을 막는다).
+//  - 너무 짧은 이름(3글자 이하)은 묶지 않는다.
+const TIER_BY_TYPE = { 중앙행정기관: "c", 공공기관: "c", 광역시도: "m", 교육청: "m" };
+const MIN_GROUP_NAME = 4;
+
+export function groupKey(service) {
+  const tier = TIER_BY_TYPE[service.ot] ?? "l";
+  let name = service.n ?? "";
+  // 지역 단계의 괄호는 '강남사랑상품권' 같은 지역별 상표라 무시하지만,
+  // 중앙·광역 단계의 괄호는 '(기초생활보장수급자)' 처럼 서로 다른 하위 사업을 가르므로 유지한다.
+  if (tier === "l") name = name.replace(/\([^)]*\)/g, " ");
+  name = name.trim();
+  const heads = [service.g, service.r, service.r && regionLabel(service.r), service.r && `${regionLabel(service.r)}시`]
+    .filter(Boolean)
+    .sort((x, y) => y.length - x.length);
+  for (const head of heads) {
+    if (name.startsWith(`${head} `)) {
+      name = name.slice(head.length).trim();
+      break;
+    }
+  }
+  const norm = name.replace(/[\s·ㆍ,.\-_/]/g, "");
+  if (norm.length < MIN_GROUP_NAME) return null;
+  return `${tier}|${norm}`;
+}
+
+// 대표로 삼을 때의 지역 가까움: 내 시·군·구 0, 내 시·도 1, 전국 공통 2, 그 밖 3. 지역을 고르지 않았으면 모두 같다.
+function regionRank(service, { region, district }) {
+  if (!region) return 0;
+  if (!service.r) return 2;
+  if (service.r !== region) return 3;
+  return district && service.g === district ? 0 : 1;
+}
+
+/**
+ * findServices 결과를 같은 이름끼리 묶는다. 각 항목은 대표 정책에 others(나머지, 가까운 순)를 붙인 모양이다.
+ * 목록 순서는 묶음에서 가장 앞선 구성원의 자리를 따른다(선택한 정렬을 해치지 않는다).
+ */
+export function groupResults(rows, profile) {
+  const byKey = new Map();
+  const slots = [];
+  rows.forEach((row, index) => {
+    const key = groupKey(row);
+    if (key === null) {
+      slots.push({ members: [row], at: index });
+      return;
+    }
+    let slot = byKey.get(key);
+    if (!slot) {
+      slot = { members: [], at: index };
+      byKey.set(key, slot);
+      slots.push(slot);
+    }
+    slot.members.push(row);
+  });
+
+  const closedLast = (s) => (s.deadline?.state === "closed" ? 1 : 0);
+  const closer = (a, b) =>
+    closedLast(a) - closedLast(b) ||
+    regionRank(a, profile) - regionRank(b, profile) ||
+    Number(a.ageCheck) - Number(b.ageCheck) ||
+    b.reasons.length - a.reasons.length ||
+    b.v - a.v;
+
+  return slots
+    .sort((a, b) => a.at - b.at)
+    .map(({ members }) => {
+      const sorted = [...members].sort(closer);
+      const [main, ...others] = sorted;
+      return { ...main, others };
+    });
 }
