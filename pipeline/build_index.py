@@ -32,6 +32,8 @@ HASHES_PATH = INDEX_PATH.parent / "hashes.json"
 CHANGES_PATH = INDEX_PATH.parent / "changes.json"
 SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
 KST = timezone(timedelta(hours=9))
+# 직전 배포본을 가져올 때 쓰는 접속 이름. Cloudflare 는 Python-urllib 같은 기본 이름을 봇으로 보고 403 으로 막는다.
+USER_AGENT = "public-info-pipeline/1.0 (+https://github.com/asroq1/public-info)"
 
 
 def clip(text: str | None, limit: int) -> str:
@@ -102,7 +104,9 @@ def load_previous(name: str, local: Path):
     """
     if SITE_URL:
         try:
-            resp = httpx.get(f"{SITE_URL}/data/{name}", timeout=30, follow_redirects=True)
+            resp = httpx.get(
+                f"{SITE_URL}/data/{name}", timeout=30, follow_redirects=True, headers={"User-Agent": USER_AGENT}
+            )
         except httpx.HTTPError as e:
             raise SystemExit(f"직전 {name} 을 가져오지 못해 중단합니다: {e}")
         if resp.status_code == 404:
