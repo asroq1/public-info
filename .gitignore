@@ -14,3 +14,7 @@ web/public/data/hashes.json
 web/public/data/changes.json
 .wrangler/
 .playwright-mcp/
+
+# Impeccable 스킬(엔진 바이너리 포함 19MB). 새로 받으려면 CLAUDE.md 참고
+.claude/
+.impeccable/config.local.json

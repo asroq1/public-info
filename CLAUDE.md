@@ -43,3 +43,6 @@ cd web && npm test && npm run build                   # 웹 테스트·빌드 (�
 - **context7**: React·Vite·Vitest·FastAPI·Jinja2·Cloudflare Pages Functions 등 라이브러리 API 를 쓸 때 최신 문서를 확인한다. 기억에 의존해 API 를 추측하지 않는다.
 - **playwright**: 화면을 직접 열어 확인한다. 접근은 `localhost` 와 배포 사이트로 제한돼 있고(`--allowed-origins`), 프로필은 메모리에만 둔다. 다른 사이트가 필요하면 `.mcp.json` 의 허용 주소를 사용자 확인 후 늘린다.
 - 버전을 올릴 때는 `npm view <패키지> version` 으로 게시자·변경 내용을 확인하고 고정 버전을 직접 바꾼다(`@latest` 금지).
+- **impeccable** (디자인 스킬, `pbakaus/impeccable` 4.8.0, 엔진 0.1.18): `.claude/skills/impeccable` 에 설치(깃에서 제외, 엔진 바이너리 19MB). **자동 훅 없이** 설치했고 **통계 전송은 꺼 둠**(`~/.impeccable/config.json` 의 `"telemetry": false`). 새로 받을 때: `npx impeccable@4.8.0 install -y --providers=claude --scope=project --no-hooks` 후 `impeccable telemetry off`. 업데이트는 변경 내용을 읽고 고정 버전을 바꾼다.
+  - 새 세션에서 `/impeccable init`(제품 맥락) → `/impeccable critique`·`audit`·`polish` 로 쓴다. 화면 검사만 할 때: `.claude/skills/impeccable/scripts/impeccable detect <주소>`(배포 사이트·로컬 주소만).
+  - 제안이 이 문서의 디자인 원칙(흰 바탕, 파란 포인트, 이모지·화살표 없음, 기본 라이트)과 부딪히면 이 문서가 우선이다. 한글 시스템 폰트·외부 폰트 없음 원칙도 유지.
