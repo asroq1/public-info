@@ -35,6 +35,8 @@ cd web && npm test && npm run build                   # 웹 테스트·빌드 (�
 - **매년 갱신**: `web/src/income.js` 의 기준 중위소득 표(보건복지부, 매년 8월 1일까지 공표).
 - 분야 아이콘·색·공유 이미지 파일명은 `web/src/fieldIcons.json` 한 곳에서 정의. 바꾸면 `scripts/make_og.py` 로 공유 이미지를 다시 만든다.
 
+- 저장·공유·체크리스트는 **전부 브라우저(localStorage)에만** 둔다: 저장 `benefit-saved-v1`(`web/src/saved.js` 와 `web/public/policy.js` 가 같은 규칙, 테스트가 일치를 확인), 서류 체크 `benefit-docs-v1`. 조건 공유 링크는 주소 해시(`#`)에만 담고 **출생연도·가구원 수·월 소득은 넣지 않는다**(`web/src/share.js`). 저장하는 값을 늘리면 `web/public/privacy.html` 도 고친다.
+- `web/public/policy.js` 는 번들 밖에서 브라우저가 일반 스크립트로 읽는다(import 불가, 테스트는 파일 내용을 실행해 검증). 스크립트가 꺼져도 페이지가 읽혀야 하므로 버튼은 `hidden` 으로 두고 스크립트가 켠다.
 - 공공데이터는 여러 값을 `||` 로 이어 붙인다(`전화문의`, `신청방법`, `지원유형`, `사용자구분`). 화면에는 `||` 를 그대로 내지 않는다(`build_pages.items`, `app/contact.py`). 전화 걸기 링크는 번호로 확실히 읽히는 것만 만들고, 자리표시 값(`000-0000`)은 보이지 않게 한다.
 
 ## 오류 신고

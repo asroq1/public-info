@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Subscribe from "./Subscribe.jsx";
 import { reportUrl } from "./report.js";
+import { SAVED_KEY, readSaved, toggleId, writeSaved } from "./saved.js";
+import { parseShare, shareParams, shareUrl } from "./share.js";
 import FIELD_ICONS from "./fieldIcons.json";
 import { MAX_HOUSEHOLD, bracketLimits, incomeBracket, incomePercent, manwon, manwonFloor, medianIncome, tableYear } from "./income.js";
 import {
@@ -12,6 +14,7 @@ import {
   regionLabel,
   REGION_SHORT,
   candidateAges,
+  deadlineState,
   emptyProfile,
   findServices,
   groupResults,
@@ -52,6 +55,8 @@ const Icon = ({ name }) => {
     search: <path d="M11 4a7 7 0 100 14 7 7 0 000-14zm9 16l-4-4" />,
     check: <path d="M5 12.5l4.2 4.2L19 7" />,
     chevron: <path d="M6 9l6 6 6-6" />,
+    bookmark: <path d="M6 4h12v17l-6-4-6 4z" />,
+    link: <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" />,
     external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />,
   };
   return (
@@ -156,6 +161,60 @@ function DeadlineBadge({ deadline }) {
   return <span className="badge">{shortDate(deadline.end)}까지</span>;
 }
 
+// 결과 카드 하나. 조건에 맞는 지원 목록과 저장한 지원 목록이 같이 쓴다.
+function ResultCard({ s, isNew, saved, onToggleSave }) {
+  return (
+    <li className={`card result${s.deadline?.state === "closed" ? " closed" : ""}`}>
+      <div className="result-top">
+        <FieldThumb field={s.f} />
+        <div>
+          <div className="badges">
+            {isNew && <span className="badge badge-ok">신규</span>}
+            <DeadlineBadge deadline={s.deadline} />
+            {s.f && <span className="badge badge-brand">{s.f}</span>}
+            {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}
+            {s.ageCheck && <span className="badge badge-warn">나이 조건 확인 필요</span>}
+          </div>
+          <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
+          {s.o && <p className="org">{s.o}</p>}
+        </div>
+        <button type="button" className="save-btn" aria-pressed={saved} aria-label={saved ? `${s.n} 저장 해제` : `${s.n} 저장`}
+          title={saved ? "저장 해제" : "저장해 두기(이 기기에만 저장돼요)"} onClick={() => onToggleSave(s.id)}>
+          <Icon name="bookmark" />
+        </button>
+      </div>
+      <Glance s={s} />
+      <Reasons reasons={s.reasons} />
+      <dl className="kv">
+        {s.t && (<><dt>대상</dt><dd>{s.t}</dd></>)}
+        {s.d && (<><dt>기한</dt><dd className="one">{s.d}</dd></>)}
+      </dl>
+      <div className="actions">
+        <a className="btn btn-primary" href={`/p/${s.id}`}>자세히 보기</a>
+        <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
+        <a className="report-link" href={reportUrl(s, window.location.origin)} target="_blank" rel="noopener noreferrer"
+           title="공식 페이지와 다른 내용을 알려 주세요. 신고는 GitHub에 공개되며 개인정보는 적지 마세요.">정보가 다른가요?</a>
+      </div>
+      <OtherPlaces main={s} others={s.others} />
+    </li>
+  );
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    if (!document.execCommand("copy")) throw new Error("copy");
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
 function summarize(p) {
   const parts = [];
   if (p.birthYear) parts.push(`${p.birthYear}년생`);
@@ -169,13 +228,21 @@ function summarize(p) {
 
 export default function App() {
   const saved = useMemo(loadSavedProfile, []);
+  // 공유받은 조건(링크의 # 뒤)이 있으면 내가 저장해 둔 조건 대신 그것으로 시작한다. 내가 고치기 전까지는 내 저장분을 덮어쓰지 않는다.
+  const shared = useMemo(() => parseShare(window.location.hash), []);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [profile, setProfile] = useState(saved ?? emptyProfile());
+  const [profile, setProfile] = useState(() => (shared ? { ...emptyProfile(), ...shared } : saved ?? emptyProfile()));
+  // 공유받은 조건 그대로인 동안(내가 고치기 전)에는 안내를 보이고, 내 저장분을 덮어쓰지 않는다
+  const [sharedProfile, setSharedProfile] = useState(() => (shared ? profile : null));
+  const showingShared = sharedProfile !== null && profile === sharedProfile;
+  const [savedIds, setSavedIds] = useState(() => readSaved());
+  const [view, setView] = useState("match");
+  const [shareMsg, setShareMsg] = useState("");
   const [shown, setShown] = useState(PAGE_SIZE);
   const [recent, setRecent] = useState([]);
   // 좁은 화면에서는 저장된 조건이 있으면 접어서 결과를 먼저 보여준다
-  const [formOpen, setFormOpen] = useState(!saved);
+  const [formOpen, setFormOpen] = useState(!saved || Boolean(shared));
   const [birthText, setBirthText] = useState(profile.birthYear ? String(profile.birthYear) : "");
   const [incomeText, setIncomeText] = useState(profile.monthlyIncome == null ? "" : String(profile.monthlyIncome));
   const year = new Date().getFullYear();
@@ -199,13 +266,56 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, q: "" }));
-    } catch {
-      /* 저장 불가 환경에서는 무시 */
+    if (!showingShared) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...profile, q: "" }));
+      } catch {
+        /* 저장 불가 환경에서는 무시 */
+      }
     }
     setShown(PAGE_SIZE);
-  }, [profile]);
+  }, [profile, showingShared]);
+
+  useEffect(() => {
+    // 주소에 남은 조건은 읽은 뒤 지운다(새로고침이나 북마크에 계속 남지 않게)
+    const clearHash = () => window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (shared) clearHash();
+    // 이미 열어 둔 탭에 공유 링크를 붙여 넣은 경우(페이지가 다시 로드되지 않는다)
+    const onHash = () => {
+      const patch = parseShare(window.location.hash);
+      if (!patch) return;
+      const next = { ...emptyProfile(), ...patch };
+      setProfile(next);
+      setSharedProfile(next);
+      setFormOpen(true);
+      clearHash();
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [shared]);
+
+  // 다른 탭이나 정책 페이지에서 저장을 바꿔도 맞춘다
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === SAVED_KEY) setSavedIds(readSaved());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const toggleSave = (id) => setSavedIds((cur) => toggleId(cur, id));
+  // 상태가 바뀐 뒤에 저장소에 쓴다(첫 렌더에서는 방금 읽은 값을 되쓰지 않는다)
+  const savedWritten = useRef(false);
+  useEffect(() => {
+    if (savedWritten.current) writeSaved(savedIds);
+    savedWritten.current = true;
+  }, [savedIds]);
+  const shareable = shareParams(profile) !== "";
+  const copyShare = () =>
+    copyToClipboard(shareUrl(window.location.origin, profile)).then(
+      () => setShareMsg("링크를 복사했어요"),
+      () => setShareMsg("복사하지 못했어요. 주소창의 링크를 직접 복사해 주세요"),
+    ).then(() => setTimeout(() => setShareMsg(""), 2500));
 
   const recentItems = useMemo(() => {
     if (!data) return [];
@@ -242,6 +352,17 @@ export default function App() {
     [results, profile],
   );
   const groupedAway = results.length - cards.length;
+  // 저장한 지원: 내 조건과 상관없이 저장해 둔 것을 그대로 보여준다(데이터에서 사라진 것은 뺀다)
+  const savedCards = useMemo(() => {
+    if (!data) return [];
+    const byId = new Map(data.services.map((s) => [s.id, s]));
+    return savedIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((s) => ({ ...s, uncertain: Boolean(s.c?.nc), ageCheck: false, deadline: deadlineState(s), reasons: [], others: [] }));
+  }, [data, savedIds]);
+  const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
+  const list = view === "saved" ? savedCards : cards;
 
   // 신청 기간이 끝나서 숨긴 건수(같은 조건에서 마감 건을 포함했을 때와의 차이)
   const hiddenClosed = useMemo(
@@ -356,6 +477,9 @@ export default function App() {
             </button>
 
             <div className="sidebar-body">
+              {showingShared && (
+                <p className="notice info" role="status">공유받은 조건을 불러왔어요. 출생연도와 월 소득은 링크에 담기지 않으니 직접 입력하면 더 정확해져요.</p>
+              )}
               <div className="fields">
                 <label className="field">
                   <span className="label">지역</span>
@@ -448,13 +572,31 @@ export default function App() {
                 <input type="checkbox" checked={profile.business} onChange={(e) => set({ business: e.target.checked })} />
                 사업자·기관 대상 지원도 보기
               </label>
+
+              <div className="share">
+                <button type="button" className="btn btn-block" onClick={copyShare} disabled={!shareable}>
+                  <Icon name="link" />{shareMsg || "내 조건 링크 복사"}
+                </button>
+                <p className="hint" aria-live="polite">
+                  {shareable
+                    ? "지역·성별·소득 구간·상황만 담겨요. 출생연도, 가구원 수, 월 소득 금액은 링크에 넣지 않아요."
+                    : "지역이나 상황을 고르면 가족·친구에게 보낼 링크를 만들 수 있어요."}
+                </p>
+              </div>
             </div>
           </aside>
 
           <section aria-label="검색 결과">
             {error && <p className="notice" role="alert">{error}</p>}
 
-            {recentItems.length > 0 && (
+            <div className="view-tabs" role="tablist" aria-label="보기 선택">
+              <button type="button" role="tab" aria-selected={view === "match"} onClick={() => setView("match")}>맞는 지원</button>
+              <button type="button" role="tab" aria-selected={view === "saved"} onClick={() => setView("saved")}>
+                저장한 지원 <span className="tab-count">{savedIds.length}</span>
+              </button>
+            </div>
+
+            {view === "match" && recentItems.length > 0 && (
               <details className="card panel recent">
                 <summary>
                   <span className="badge badge-ok">NEW</span>
@@ -473,8 +615,25 @@ export default function App() {
               </details>
             )}
 
-            <Subscribe profile={profile} />
+            {view === "match" && <Subscribe profile={profile} />}
 
+            {view === "saved" && (
+              <>
+                <div className="results-head">
+                  <h2>저장한 지원 <b>{savedCards.length.toLocaleString()}건</b></h2>
+                  <span className="muted">이 기기의 브라우저에만 저장돼요</span>
+                </div>
+                {data && savedCards.length === 0 && (
+                  <div className="card empty">
+                    <h3>아직 저장한 지원이 없어요</h3>
+                    <p>카드 오른쪽 위의 저장 버튼을 누르면 여기에 모여요. 마감일과 신청 상태를 다시 확인할 때 편해요.</p>
+                    <button type="button" className="btn btn-primary" onClick={() => setView("match")}>맞는 지원 보기</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {view === "match" && (<>
             <div className="toolbar">
               <label className="search">
                 <Icon name="search" />
@@ -541,43 +700,17 @@ export default function App() {
               </p>
             )}
 
+            </>)}
+
             <ul className="list">
-              {cards.slice(0, shown).map((s) => (
-                <li key={s.id} className={`card result${s.deadline?.state === "closed" ? " closed" : ""}`}>
-                  <div className="result-top">
-                    <FieldThumb field={s.f} />
-                    <div>
-                      <div className="badges">
-                        {recentIds.has(s.id) && <span className="badge badge-ok">신규</span>}
-                        <DeadlineBadge deadline={s.deadline} />
-                        {s.f && <span className="badge badge-brand">{s.f}</span>}
-                        {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}
-                        {s.ageCheck && <span className="badge badge-warn">나이 조건 확인 필요</span>}
-                      </div>
-                      <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
-                      {s.o && <p className="org">{s.o}</p>}
-                    </div>
-                  </div>
-                  <Glance s={s} />
-                  <Reasons reasons={s.reasons} />
-                  <dl className="kv">
-                    {s.t && (<><dt>대상</dt><dd>{s.t}</dd></>)}
-                    {s.d && (<><dt>기한</dt><dd className="one">{s.d}</dd></>)}
-                  </dl>
-                  <div className="actions">
-                    <a className="btn btn-primary" href={`/p/${s.id}`}>자세히 보기</a>
-                    <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
-                    <a className="report-link" href={reportUrl(s, window.location.origin)} target="_blank" rel="noopener noreferrer"
-                       title="공식 페이지와 다른 내용을 알려 주세요. 신고는 GitHub에 공개되며 개인정보는 적지 마세요.">정보가 다른가요?</a>
-                  </div>
-                  <OtherPlaces main={s} others={s.others} />
-                </li>
+              {list.slice(0, shown).map((s) => (
+                <ResultCard key={s.id} s={s} isNew={recentIds.has(s.id)} saved={savedSet.has(s.id)} onToggleSave={toggleSave} />
               ))}
             </ul>
 
-            {cards.length > shown && (
+            {list.length > shown && (
               <button type="button" className="btn btn-block more" onClick={() => setShown((n) => n + PAGE_SIZE)}>
-                더 보기 ({(cards.length - shown).toLocaleString()}건 남음)
+                더 보기 ({(list.length - shown).toLocaleString()}건 남음)
               </button>
             )}
           </section>

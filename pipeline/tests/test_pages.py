@@ -245,3 +245,21 @@ def test_double_bar_separators_are_shown_as_dots():
     html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
     assert "정부24온라인신청 · 방문신청" in html and "기타 · 상담/법률지원" in html
     assert "||" not in re.sub(r"<script.*?</script>", "", html, flags=re.S)   # 스크립트의 논리 연산자는 제외
+
+
+def test_save_button_is_hidden_until_script_runs_and_carries_policy_id():
+    html = render()
+    assert 'data-save data-id="T1"' in html and 'aria-pressed="false" hidden' in html
+    assert '<script src="/policy.js" defer></script>' in html
+
+
+def test_calendar_button_only_for_open_or_upcoming_deadlines_with_end_date():
+    def page(today, dl):
+        return bp.render_policy({**SERVICE, "deadline": dl}, [], {"생활안정": "/f/1"}, "2026-10-29", today=today)
+
+    open_page = page(20261101, {"e": 20261231})
+    assert 'data-ics' in open_page and 'data-end="20261231"' in open_page and "마감 3일 전에 알려 줘요" in open_page
+    assert 'data-ics' in page(20261101, {"b": 20261201, "e": 20261231})          # 접수 예정도 종료일이 있으면
+    assert 'data-ics' not in page(20261101, {"b": 20261201})                      # 종료일을 모르면 달력에 넣지 않는다
+    assert 'data-ics' not in page(20270105, {"e": 20261231})                      # 이미 끝난 것
+    assert 'data-ics' not in render()                                             # 기한 정보 없음

@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
 {% set og_type = "article" %}
-{% block head_extra %}<script type="application/ld+json">{{ jsonld | safe }}</script>{% endblock %}
+{% block head_extra %}<script type="application/ld+json">{{ jsonld | safe }}</script>
+<script src="/policy.js" defer></script>{% endblock %}
 
 {% macro contact_item(c) %}<li>{% if c.name %}<span class="c-name">{{ c.name }}</span>{% endif %}{% if c.tel %}<a class="c-tel" href="tel:{{ c.tel }}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></svg>{{ c.phone }}</a>{% elif c.phone %}<span class="c-num">{{ c.phone }}</span>{% endif %}</li>{% endmacro %}
 
@@ -43,6 +44,7 @@
     {% else %}
     <a class="btn btn-primary" href="{{ s['상세조회URL'] }}" rel="noopener nofollow" target="_blank">공식 페이지에서 신청·확인하기 {{ ext_icon }}</a>
     {% endif %}
+    <button type="button" class="btn btn-save" data-save data-id="{{ s['서비스ID'] }}" aria-pressed="false" hidden><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg><span>저장</span></button>
     <a class="btn" href="/">내 조건에 맞는 다른 혜택 찾기</a>
   </div>
   {% if deadline.state == "closed" %}
@@ -51,6 +53,9 @@
   <div class="notice-card info" role="status"><b>접수 예정</b> · {{ deadline.start_fmt }}부터{% if deadline.end_fmt %} {{ deadline.end_fmt }}까지{% endif %}</div>
   {% elif deadline.state == "open" %}
   <div class="notice-card {{ 'warn' if deadline.dday <= 7 else 'info' }}" role="status"><b>신청 마감 {{ deadline.end_fmt }}</b> · {% if deadline.dday == 0 %}오늘 마감{% else %}D-{{ deadline.dday }}{% endif %}</div>
+  {% endif %}
+  {% if deadline.state in ("open", "upcoming") and deadline.end %}
+  <p class="cal-row"><button type="button" class="btn" data-ics data-id="{{ s['서비스ID'] }}" data-name="{{ s['서비스명'] }}" data-end="{{ deadline.end }}" hidden><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>마감일을 달력에 추가</button><span class="muted">마감 3일 전에 알려 줘요</span></p>
   {% endif %}
   {% if detail.apply_url %}<p class="muted" style="margin-top:8px">신청 사이트 주소는 공공데이터에 등록된 값이며 변경되었을 수 있습니다.</p>{% endif %}
 
@@ -81,16 +86,20 @@
   {% endfor %}
 
   {% if detail.docs or detail.docs_official or detail.docs_self %}
-  <section class="card">
-    <h2>필요한 서류</h2>
-    {% if detail.docs %}<ul class="plain-list">{% for line in detail.docs %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+  <section class="card" id="docs" data-checklist data-policy="{{ s['서비스ID'] }}" data-title="{{ s['서비스명'] }} 준비 서류">
+    <div class="card-head"><h2>필요한 서류</h2><span class="progress muted" data-progress hidden></span></div>
+    {% if detail.docs %}<ul class="check-list">{% for line in detail.docs %}<li><label><input type="checkbox"><span>{{ line }}</span></label></li>{% endfor %}</ul>{% endif %}
     {% if detail.docs_official %}
-    <h3 class="sub">담당 공무원이 확인하는 서류</h3>
+    <h3 class="sub">담당 공무원이 확인하는 서류 <span class="muted">(직접 준비하지 않아도 돼요)</span></h3>
     <ul class="plain-list">{% for line in detail.docs_official %}<li>{{ line }}</li>{% endfor %}</ul>
     {% endif %}
     {% if detail.docs_self %}
     <h3 class="sub">본인 확인이 필요한 서류</h3>
-    <ul class="plain-list">{% for line in detail.docs_self %}<li>{{ line }}</li>{% endfor %}</ul>
+    <ul class="check-list">{% for line in detail.docs_self %}<li><label><input type="checkbox"><span>{{ line }}</span></label></li>{% endfor %}</ul>
+    {% endif %}
+    {% if detail.docs or detail.docs_self %}
+    <p class="muted doc-note">체크 표시는 이 기기의 브라우저에만 저장돼요. 서류는 상황에 따라 달라질 수 있으니 신청 전에 공식 페이지에서 한 번 더 확인하세요.</p>
+    <div class="doc-actions"><button type="button" class="btn" data-copy-docs hidden>준비물 목록 복사</button></div>
     {% endif %}
   </section>
   {% endif %}

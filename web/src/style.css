@@ -174,3 +174,21 @@
 /* 정보 오류 신고 */
 .report-link { margin-left: auto; align-self: center; font-size: 12.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 .report-link:hover { color: var(--brand); }
+
+/* 보기 전환: 맞는 지원 / 저장한 지원 */
+.view-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 3px; margin-bottom: 14px; background: var(--surface-2); border-radius: 12px; }
+.view-tabs button { min-height: 42px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-2); font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
+.view-tabs button:hover { color: var(--brand); }
+.view-tabs button[aria-selected="true"] { background: var(--surface); color: var(--brand); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+.tab-count { display: inline-block; min-width: 22px; margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-ink); font-size: 12.5px; line-height: 20px; }
+
+/* 저장 버튼 */
+.save-btn { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.save-btn:hover { color: var(--brand); border-color: var(--brand); }
+.save-btn svg { width: 18px; height: 18px; }
+.save-btn[aria-pressed="true"] { background: var(--brand-soft); border-color: transparent; color: var(--brand); }
+.save-btn[aria-pressed="true"] svg { fill: currentColor; }
+
+/* 조건 공유 */
+.share { margin-top: 16px; display: grid; gap: 8px; }
+.notice.info { background: var(--brand-soft); color: var(--brand-ink); margin-top: 14px; }
