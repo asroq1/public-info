@@ -1,14 +1,14 @@
 /* 메인 앱 전용 스타일. 색·글꼴 등 공통 변수는 /page.css 에 있다. */
 
 /* 히어로 */
-.hero { padding: 44px 0 32px; background: var(--surface); border-bottom: 1px solid var(--line); }
-.layout { padding-top: 28px; }
-.hero h1 { font-size: clamp(28px, 5.4vw, 42px); font-weight: 800; max-width: 18em; }
+.hero { padding: 40px 0 28px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.layout { padding-top: 24px; }
+.hero h1 { font-size: clamp(28px, 4.8vw, 40px); font-weight: 800; letter-spacing: -0.03em; max-width: 18em; }
 .hero h1 em { font-style: normal; color: var(--brand); }
-.hero p { margin-top: 12px; font-size: 17px; color: var(--fg-2); max-width: 36em; }
-.trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 20px; padding: 0; list-style: none; font-size: 14px; font-weight: 600; color: var(--fg-2); }
-.trust li { display: inline-flex; align-items: center; gap: 7px; }
-.trust svg { width: 18px; height: 18px; color: var(--brand); flex: none; }
+.hero p { margin-top: 12px; font-size: 16.5px; color: var(--fg-2); max-width: 34em; }
+.trust { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding: 0; list-style: none; font-size: 13.5px; font-weight: 600; color: var(--fg-2); }
+.trust li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); line-height: 1.4; }
+.trust svg { width: 16px; height: 16px; color: var(--brand); flex: none; }
 
 /* 레이아웃 */
 .layout { display: grid; gap: 20px; align-items: start; padding-bottom: 8px; }
@@ -57,19 +57,23 @@
 .check input { width: 18px; height: 18px; accent-color: var(--brand); flex: none; }
 
 /* 검색줄 */
-.toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
-.search { position: relative; flex: 1 1 220px; }
+/* 검색줄: 검색창은 한 줄을 다 쓰고, 필터는 그 아래에 모아서 첫 결과가 빨리 보이게 한다 */
+.toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 640px) { .toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; } }
+.search { position: relative; grid-column: 1 / -1; }
 .search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
 .search .input { padding-left: 42px; }
-.toolbar .select { flex: 0 1 180px; }
 
 /* 결과 */
 .results-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin: 18px 2px 12px; }
-.results-head h2 { font-size: 20px; }
+.results-head h2 { font-size: 22px; }
 .results-head h2 b { color: var(--brand); }
 .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-.result { padding: 20px; }
-.result h3 { font-size: 18px; margin: 10px 0 12px; }
+.result { padding: 22px; transition: border-color .15s, box-shadow .2s; }
+.result:hover { border-color: #cbd5e3; box-shadow: var(--shadow-hover); }
+:root[data-theme="dark"] .result:hover { border-color: #31425f; }
+.result h3 { font-size: 19px; line-height: 1.4; margin: 10px 0 12px; }
+.org { margin-top: 4px; font-size: 13.5px; color: var(--muted); }
 .result h3 a { color: var(--fg); text-decoration: none; }
 .result h3 a:hover { color: var(--brand); text-decoration: underline; }
 .kv { display: grid; grid-template-columns: 48px 1fr; gap: 6px 10px; font-size: 14.5px; color: var(--fg-2); margin: 0; }
@@ -94,6 +98,17 @@
 .panel ul { list-style: none; margin: 10px 0 0; padding: 0; }
 .panel li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14.5px; display: flex; flex-direction: column; gap: 1px; }
 .panel li:first-child { border-top: 0; }
+
+/* 새 소식은 접어 두고 제목 줄만 보여준다: 결과가 첫 화면에 먼저 보이게 */
+.panel.recent { padding: 0; }
+.recent summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 12px 18px; cursor: pointer; list-style: none; font-size: 15px; font-weight: 700; border-radius: var(--radius); }
+.recent summary::-webkit-details-marker { display: none; }
+.recent summary:hover { background: var(--surface-2); }
+.recent-count { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.recent summary svg { width: 18px; height: 18px; margin-left: auto; color: var(--muted); transition: transform .2s; flex: none; }
+.recent[open] summary svg { transform: rotate(180deg); }
+.recent[open] summary { border-radius: var(--radius) var(--radius) 0 0; }
+.panel.recent ul { margin: 0; padding: 4px 18px 10px; border-top: 1px solid var(--line); }
 .panel li a { color: var(--fg); font-weight: 600; text-decoration: none; }
 .panel li a:hover { color: var(--brand); text-decoration: underline; }
 .subscribe form { display: grid; gap: 12px; margin-top: 12px; }
@@ -103,9 +118,9 @@
 
 .app-footer { margin-top: 40px; }
 @media (max-width: 560px) {
-  .toolbar .select { flex: 1 1 100%; }
-  .hero { padding: 32px 0 24px; }
-  .trust { flex-direction: column; gap: 10px; }
+  .hero { padding: 28px 0 20px; }
+  .hero p { font-size: 15.5px; }
+  .trust { margin-top: 14px; font-size: 13px; }
 }
 
 .result-top { display: flex; gap: 14px; align-items: flex-start; }

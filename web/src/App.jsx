@@ -51,6 +51,7 @@ const Icon = ({ name }) => {
     refresh: <path d="M20 12a8 8 0 10-2.3 5.7M20 5v5h-5" />,
     search: <path d="M11 4a7 7 0 100 14 7 7 0 000-14zm9 16l-4-4" />,
     check: <path d="M5 12.5l4.2 4.2L19 7" />,
+    chevron: <path d="M6 9l6 6 6-6" />,
     external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />,
   };
   return (
@@ -454,8 +455,13 @@ export default function App() {
             {error && <p className="notice" role="alert">{error}</p>}
 
             {recentItems.length > 0 && (
-              <div className="card panel">
-                <h3><span className="badge badge-ok">NEW</span>최근 30일 새로 등록된 지원</h3>
+              <details className="card panel recent">
+                <summary>
+                  <span className="badge badge-ok">NEW</span>
+                  <span className="recent-title">최근 30일 새로 등록된 지원</span>
+                  <span className="recent-count">{recentItems.length}건</span>
+                  <Icon name="chevron" />
+                </summary>
                 <ul>
                   {recentItems.map((s) => (
                     <li key={s.id}>
@@ -464,7 +470,7 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             )}
 
             <Subscribe profile={profile} />
@@ -545,11 +551,11 @@ export default function App() {
                         {recentIds.has(s.id) && <span className="badge badge-ok">신규</span>}
                         <DeadlineBadge deadline={s.deadline} />
                         {s.f && <span className="badge badge-brand">{s.f}</span>}
-                        {s.o && <span className="badge">{s.o}</span>}
                         {s.uncertain && <span className="badge badge-warn">조건 정보 없음 · 직접 확인</span>}
                         {s.ageCheck && <span className="badge badge-warn">나이 조건 확인 필요</span>}
                       </div>
                       <h3><a href={`/p/${s.id}`}>{s.n}</a></h3>
+                      {s.o && <p className="org">{s.o}</p>}
                     </div>
                   </div>
                   <Glance s={s} />
@@ -559,7 +565,7 @@ export default function App() {
                     {s.d && (<><dt>기한</dt><dd className="one">{s.d}</dd></>)}
                   </dl>
                   <div className="actions">
-                    <a className="btn" href={`/p/${s.id}`}>자세히 보기</a>
+                    <a className="btn btn-primary" href={`/p/${s.id}`}>자세히 보기</a>
                     <a className="btn" href={s.u} target="_blank" rel="noreferrer">공식 페이지 <Icon name="external" /></a>
                     <a className="report-link" href={reportUrl(s, window.location.origin)} target="_blank" rel="noopener noreferrer"
                        title="공식 페이지와 다른 내용을 알려 주세요. 신고는 GitHub에 공개되며 개인정보는 적지 마세요.">정보가 다른가요?</a>
