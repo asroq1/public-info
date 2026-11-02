@@ -3,7 +3,7 @@
 보조금24(행정안전부 공공서비스) 데이터를 받아 나이·소득·지역·상황에 맞는 지원 후보를 보여주는 정적 사이트. 사이트: https://public-info-224.pages.dev
 
 ## 구조
-- `pipeline/` Python. API 수집 → 검증 → `web/public/data/index.json` 과 정책별 정적 HTML 생성. 해석기는 `pipeline/app/` (conditions, deadline, detail, regions, changes)
+- `pipeline/` Python. API 수집 → 검증 → `web/public/data/index.json` 과 정책별 정적 HTML 생성. 해석기는 `pipeline/app/` (conditions, deadline, detail, regions, changes, contact)
 - `web/` React + Vite. 인덱스를 받아 **브라우저에서** 매칭(`src/matcher.js`). 서버 없음
 - `functions/` Cloudflare Pages Functions(이메일 알림 API). D1·메일 설정 전에는 꺼져 있음(`/api/status` enabled:false)
 - `docs/ROADMAP.md` 개선 방안과 진행 상황, `PLAN.md` 초기 설계, `README.md` 실행·배포
@@ -34,6 +34,8 @@ cd web && npm test && npm run build                   # 웹 테스트·빌드 (�
 - 웹과 Functions 가 함께 쓰는 `web/src/matcher.js` 는 JSON 파일을 import 하지 않는다(Functions 번들러 호환). 필요한 값은 파이프라인이 인덱스에 담는다.
 - **매년 갱신**: `web/src/income.js` 의 기준 중위소득 표(보건복지부, 매년 8월 1일까지 공표).
 - 분야 아이콘·색·공유 이미지 파일명은 `web/src/fieldIcons.json` 한 곳에서 정의. 바꾸면 `scripts/make_og.py` 로 공유 이미지를 다시 만든다.
+
+- 공공데이터는 여러 값을 `||` 로 이어 붙인다(`전화문의`, `신청방법`, `지원유형`, `사용자구분`). 화면에는 `||` 를 그대로 내지 않는다(`build_pages.items`, `app/contact.py`). 전화 걸기 링크는 번호로 확실히 읽히는 것만 만들고, 자리표시 값(`000-0000`)은 보이지 않게 한다.
 
 ## 오류 신고
 정책 페이지와 카드의 "정보가 다른가요?" 는 GitHub 이슈 양식(`.github/ISSUE_TEMPLATE/data-report.yml`, 라벨 `data-report`)을 정책 정보로 미리 채워 연다.

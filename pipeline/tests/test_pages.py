@@ -218,3 +218,30 @@ def test_policy_page_has_report_card_and_source_line():
     assert "data-report.yml" in html and "GitHub에 공개됩니다" in html
     assert "행정안전부 보조금24 · 수정 2026.04.30" in html
     assert "<script>alert(1)" not in html                  # 신고 링크에서도 이스케이프가 유지된다
+
+
+def test_contacts_render_as_dialable_list_without_raw_separators():
+    s = {**SERVICE, "전화문의": "복지정책과/052-229-3426||울산지역사회서비스지원단/052-243-4800||해당지역 보건소/000-0000||가과/02-111-2222||나과/02-333-4444"}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    assert 'href="tel:0522293426"' in html and "052-229-3426" in html
+    assert "||" not in html and "000-0000" not in html          # 구분자와 자리표시 번호는 보이지 않는다
+    assert "문의처 2곳 더 보기" in html                            # 5곳 중 3곳만 먼저 보인다(자리표시 번호는 이름만 남아 세어진다)
+
+
+def test_no_contact_row_when_field_is_empty():
+    assert "<dt>문의</dt>" not in render()
+
+
+def test_age_row_in_who_section_says_it_may_differ():
+    s = {**SERVICE, "conditions": {"a": [19, 34]}}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    assert "만 19세 이상 34세 이하" in html and "공공데이터 기준이며 실제와 다를 수 있어요" in html
+
+
+def test_double_bar_separators_are_shown_as_dots():
+    assert bp.items("기타 온라인신청||방문신청") == "기타 온라인신청 · 방문신청"
+    assert bp.items("방문") == "방문" and bp.items("a||") == "a"
+    s = {**SERVICE, "신청방법": "정부24온라인신청||방문신청", "지원유형": "기타||상담/법률지원"}
+    html = bp.render_policy(s, [], {"생활안정": "/f/1"}, "2026-10-29")
+    assert "정부24온라인신청 · 방문신청" in html and "기타 · 상담/법률지원" in html
+    assert "||" not in re.sub(r"<script.*?</script>", "", html, flags=re.S)   # 스크립트의 논리 연산자는 제외

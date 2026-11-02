@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 from pathlib import Path
 
 from app.conditions import describe_conditions
+from app.contact import parse_contacts
 from app.deadline import status as deadline_status
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -47,12 +48,18 @@ env = Environment(
 )
 
 
+def items(text: str) -> str:
+    """공공데이터가 여러 값을 이어 붙일 때 쓰는 '||' 를 읽기 좋은 구분점으로 바꾼다('방문신청||온라인신청')."""
+    return " · ".join(part.strip() for part in text.split("||") if part.strip())
+
+
 def paragraphs(text: str) -> list[str]:
-    """원문 줄바꿈을 문단으로 나눈다. 내용은 가공하지 않는다."""
-    return [line.strip() for line in text.replace("\r", "").split("\n") if line.strip()]
+    """원문 줄바꿈을 문단으로 나눈다. 내용은 가공하지 않고, 값 사이의 '||' 구분자만 바꾼다."""
+    return [items(line) for line in text.replace("\r", "").split("\n") if line.strip()]
 
 
 env.globals["paragraphs"] = paragraphs
+env.filters["items"] = items
 
 
 def clip(text: str, limit: int) -> str:
@@ -144,6 +151,7 @@ def render_policy(s: dict, related: list[dict], field_urls: dict, updated: str, 
         sections=SECTIONS,
         related=related,
         who=describe_conditions(s.get("conditions") or {}),
+        contacts=parse_contacts(s.get("전화문의")),
         no_conditions=bool((s.get("conditions") or {}).get("nc")),
         field_url=field_urls.get(s.get("서비스분야"), "/"),
         art=field_art(s.get("서비스분야")),
